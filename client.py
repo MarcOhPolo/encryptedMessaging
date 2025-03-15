@@ -31,21 +31,27 @@ def request_userlist_and_display(client_socket):
         i+=1
 
 
+def request_connection(client_socket):
+    client_socket.sendall(codes.CONNECT_TO_OPCODE.encode('utf-8'))
+    data = client_socket.recv(1024)
+    print(data.decode('utf-8'))
+
+
 def client_request_userlist(client_socket):
-    request = input("Request list of connected users? y/n: ")
+    request = input("""Input your command:
+                    Generate userlist command - U
+                    Connect to a user - C""")
+    request = request.lower()
+    match request:
+        case "U":
+            request_userlist_and_display(client_socket)
+        case "C":
+            request_connection(client_socket)
+        case _:
+            print("Select a valid commant please")
+            client_request_userlist(client_socket)
 
-    if (request.lower() == "y"):
-        request_userlist_and_display(client_socket)
-
-    elif (request.lower() == "n"):
-        print("Don't start the program then?")
-        client_request_userlist(client_socket)
-
-    else:
-        print("Y/N please")
-        client_request_userlist(client_socket)
-
-
+ 
 def choose_connection(client_socket):
     data = input("Please select a user to message from the list (type their name)")
     client_socket.sendall((codes.CONNECT_TO_OPCODE+data).encode('utf-8'))

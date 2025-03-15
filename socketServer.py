@@ -24,6 +24,14 @@ def handle_client(client_socket, client_address):
     if user_list[client_address]:
         user_list.pop(client_address)
 
+def handle_connection(client_socket, client_address, recipient_name):
+    try:
+        recipient_address = user_list[recipient_name]
+    except:
+        print("User not found, sending new query")
+        client_socket.sendall(("User not found try again").encode('utf-8'))
+        return None
+    #now prompt user1(message requester) to select the encryption protocol
 
 def handle_requests(client_socket, client_address, data):
 
@@ -47,9 +55,8 @@ def handle_requests(client_socket, client_address, data):
             print(f"Server received request from: {user_list[client_address]}. Sending list...")
             client_socket.sendall(pickle.dumps(user_list))
 
-        case "_":
-            print("Check code")
-
+        case _:
+            print(f"Check opcode: {op_code}")
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
