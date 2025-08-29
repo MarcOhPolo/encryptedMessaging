@@ -10,6 +10,7 @@ class codes:
     CONNECT_TO_OPCODE = OPCODE_PREFIX+"003"
 
 
+ENCRYPTION_METHODS = {1,"DIFFIE HELLMAN"}
 opcode_length = len(codes.NAME_OPCODE)
 user_list = {}
 
@@ -24,6 +25,7 @@ def handle_client(client_socket, client_address):
     if user_list[client_address]:
         user_list.pop(client_address)
 
+
 def handle_connection(client_socket, client_address, recipient_name):
     try:
         recipient_address = user_list[recipient_name]
@@ -33,10 +35,21 @@ def handle_connection(client_socket, client_address, recipient_name):
         return None
     #now prompt user1(message requester) to select the encryption protocol
 
+
+def prompt_encryption_selection(client_socket):
+    client_socket.sendall(pickle.dumps(ENCRYPTION_METHODS))
+    data = client_socket.recv(1024)
+    try:
+        enc_method = ENCRYPTION_METHODS[data]
+    except:
+        client_socket.sendall(("No such method try again").encode('utf-8'))
+    
+
 def handle_requests(client_socket, client_address, data):
 
     request = data.decode('utf-8')
     op_code = request[:opcode_length]
+
     try:
         request_content = request[opcode_length:]
     except:
@@ -57,6 +70,7 @@ def handle_requests(client_socket, client_address, data):
 
         case _:
             print(f"Check opcode: {op_code}")
+
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
