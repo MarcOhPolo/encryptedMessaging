@@ -5,6 +5,7 @@ from server import codes
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
 
+#make second thread for listening for messages from other clients
 
 def main():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -47,7 +48,7 @@ def client_request_userlist(client_socket):
                     Connect to a user through the server - S
                     Connect to a user directly (p2p) - D
                     Your command: """)
-    request = request.lower()
+    request = request.upper()
     match request:
         case "U":
             request_userlist_and_display(client_socket)
@@ -62,7 +63,10 @@ def client_request_userlist(client_socket):
  
 def choose_connection(client_socket):
     data = input("Please select a user to message from the list (type their name)")
-    client_socket.sendall((codes.CONNECT_TO_OPCODE+data).encode('utf-8'))
+    client_socket.sendall((codes.CONNECT_TO_P2P_OPCODE+data).encode('utf-8'))
+    data = client_socket.recv(1024)
+    print(data.decode('utf-8'))
+
     
 
 if __name__ == "__main__":
