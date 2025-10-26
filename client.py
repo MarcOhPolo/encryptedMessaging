@@ -3,7 +3,6 @@ import pickle
 import threading
 from server import codes
 
-
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
 
 # make second thread for listening for messages from other clients
@@ -30,7 +29,6 @@ def main():
         handle_server_connection(client_socket)
         client_handler = threading.Thread(target=handle_server_connection, args=(client_socket,))
         client_handler.start()
-
 
 
 def request_userlist_and_display(client_socket):
