@@ -1,26 +1,36 @@
 import socket
 import pickle
+import threading
 from server import codes
 
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
 
-#make second thread for listening for messages from other clients
+# make second thread for listening for messages from other clients
+# concurrently listen for messages from server
+# and user input to send messages to server
+# initiate thread that listens to incoming server messages
 
 def main():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     host = '127.0.0.1'
     port = 12345
+
     client_socket.connect((host, port))
     print(greeting_msg)
+
     message = codes.NAME_OPCODE + input("Enter your name: ")
     client_socket.sendall(message.encode('utf-8'))
+    
     data = client_socket.recv(1024)
     response = data.decode('utf-8')
 
     print(f"Server response: {response}")
     while True:
-        client_request_userlist(client_socket)
+        handle_server_connection(client_socket)
+        client_handler = threading.Thread(target=handle_server_connection, args=(client_socket,))
+        client_handler.start()
+
 
 
 def request_userlist_and_display(client_socket):
@@ -42,7 +52,7 @@ def choose_connection(client_socket):
     client_socket.sendall(codes.CONNECT_TO_P2P_OPCODE+data.encode('utf-8'))
 
 
-def client_request_userlist(client_socket):
+def handle_server_connection(client_socket):
     request = input("""Input your command:
                     Generate userlist command - U
                     Connect to a user through the server - S
@@ -58,7 +68,7 @@ def client_request_userlist(client_socket):
             choose_connection(client_socket)
         case _:
             print("Select a valid commant please")
-            client_request_userlist(client_socket)
+            handle_server_connection(client_socket)
 
  
 def choose_connection(client_socket):

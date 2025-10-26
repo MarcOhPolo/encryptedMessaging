@@ -26,9 +26,19 @@ user_list = {}
 
 def handle_client(client_socket, client_address):
     while True:
-        data = client_socket.recv(1024)
-        # Fix this with an actual exception error (bad code bruh)
-        if not data:
+        try:
+            data = client_socket.recv(1024)
+            if not data:
+                # Client closed the connection
+                break
+        except ConnectionResetError:
+            print("Connection was reset by the client.")
+            break
+        except TimeoutError:
+            print("Socket operation timed out.")
+            break
+        except Exception as e:
+            print(f"Unexpected socket error: {e}")
             break
         handle_requests(client_socket,client_address,data)
     client_socket.close()
