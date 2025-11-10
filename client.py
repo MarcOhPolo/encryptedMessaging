@@ -5,10 +5,9 @@ from server import codes
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
 
-# make second thread for listening for messages from other clients
-# concurrently listen for messages from server
-# and user input to send messages to server
-# initiate thread that listens to incoming server messages
+# currntly only supports NAME_OPCODE and USER_LIST_OPCODE
+# can be expanded to support more opcodes as needed
+# needs evulate how listening for messages from server will work alongside user input
 
 def main():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -76,6 +75,5 @@ def choose_connection(client_socket):
     print(data.decode('utf-8'))
 
     
-
 if __name__ == "__main__":
     main()

@@ -21,6 +21,7 @@ opcode_length = len(codes.NAME_OPCODE)
 # thread can share that userlist using locks. Then the server can look at active threads/connections
 # and decide to pop from dictionary if connection or thread has crashed
 
+
 user_list = {}
 
 
