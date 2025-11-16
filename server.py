@@ -75,9 +75,10 @@ def handle_connection(client_socket, recipient_name):
         return None
 
 def handOff_connection(client_socket, client_address, recipient_name):
-        
         recipient_address = handle_connection(client_socket, recipient_name=recipient_name) 
-        socket.socket.sendto(client_socket,codes.CLIENT_REQUEST_P2P_OPCODE.encode("utf-8"),recipient_address)
+        socket.socket.sendto(recipient_address, f"Client {user_list[client_address]} wants to connect with you.".encode('utf-8'))
+        socket.socket.sendto(client_address, f"Connecting you to {recipient_name}, sending address to client...".encode('utf-8'))
+        socket.socket.sendto(client_socket, recipient_address.encode('utf-8'))
 
 
 def prompt_encryption_selection(client_socket):

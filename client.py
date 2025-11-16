@@ -7,7 +7,8 @@ greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
 
 # currntly only supports NAME_OPCODE and USER_LIST_OPCODE
 # can be expanded to support more opcodes as needed
-# needs evulate how listening for messages from server will work alongside user input
+# need 2 threads, one for showing user information, the other for the backend conversation with server
+
 
 def main():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -71,6 +72,8 @@ def handle_server_connection(client_socket):
 def choose_connection(client_socket):
     data = input("Please select a user to message from the list (type their name)")
     client_socket.sendall((codes.CONNECT_TO_P2P_OPCODE+data).encode('utf-8'))
+    #WHEN THE SERVER RESPONDS WITH THE ADDRESS OF THE OTHER CLIENT
+    #LAUNCH P2P CONNECTION HERE ON A NEW THREAD
     data = client_socket.recv(1024)
     print(data.decode('utf-8'))
 
