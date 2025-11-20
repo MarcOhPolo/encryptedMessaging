@@ -10,10 +10,11 @@ class codes:
     CONNECT_TO_SERVER_MEDIATED_OPCODE = OPCODE_PREFIX+"003"
     CONNECT_TO_P2P_OPCODE = OPCODE_PREFIX+"004"
     CLIENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"005"
+    opcode_length = len(NAME_OPCODE)
+
 
 
 ENCRYPTION_METHODS = {1,"DIFFIE HELLMAN"}
-opcode_length = len(codes.NAME_OPCODE)
 #BUG:   when server's thread for handling a specific client the user stays on the userlist. This is because
 #       userlist drops are run on the same thread the server uses to handle client connection
 # Solutions:
@@ -93,10 +94,10 @@ def prompt_encryption_selection(client_socket):
 def handle_requests(client_socket, client_address, data):
 
     request = data.decode('utf-8')
-    op_code = request[:opcode_length]
+    op_code = request[:codes.opcode_length]
 
     try:
-        request_content = request[opcode_length:]
+        request_content = request[codes.opcode_length:]
     except:
         print("Message with no content, only opcode")
 
