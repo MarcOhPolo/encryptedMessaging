@@ -1,6 +1,7 @@
 import socket
 import pickle
 import threading
+from EventBus import EventBus
 from server import codes
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
@@ -26,14 +27,17 @@ def main():
 
     print(f"Server response: {response}")
     while True:
-        handle_server_connection(client_socket)
-        client_handler = threading.Thread(target=handle_server_connection, args=(client_socket,))
-        client_handler.start()
+        listen_thread = threading.Thread(target=listening_thread, args=(client_socket,))
+        listen_thread.start()
+        client_interface_thread = threading.Thread(target=client_interface, args=(client_socket,))
+        client_interface_thread.start()
 
 
 def request_userlist_and_display(client_socket):
+    # Request user list from server
+    # Now uses the EventBus to get the response from the listening thread instead of blocking recv
     client_socket.sendall(codes.USER_LIST_OPCODE.encode('utf-8'))
-    data = client_socket.recv(1024)
+    data = EventBus.get()
     i=1
     for str in pickle.loads(data).values():
         print(f"{i}: {str}")
@@ -42,12 +46,13 @@ def request_userlist_and_display(client_socket):
 
 def request_connection(client_socket):
     client_socket.sendall(codes.CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8'))
-    data = client_socket.recv(1024)
+    data = EventBus.get()
     print(data.decode('utf-8'))
 
 def choose_connection(client_socket):
     data = input("Please select a user to message from the list (type their name)")
     client_socket.sendall(codes.CONNECT_TO_P2P_OPCODE+data.encode('utf-8'))
+    data = EventBus.get()
 
 
 def handle_server_connection(client_socket):
@@ -77,6 +82,17 @@ def choose_connection(client_socket):
     data = client_socket.recv(1024)
     print(data.decode('utf-8'))
 
+
+def client_interface(client_socket):
+    #When server connection is established, handle interactions
+    handle_server_connection(client_socket)
+
+
+def listening_thread(client_socket):
+    while True:
+        data = client_socket.recv(1024)
+        if data:
+            EventBus.publish(data)
     
 if __name__ == "__main__":
     main()
