@@ -5,12 +5,21 @@ import threading
 
 class codes:
     OPCODE_PREFIX = "op"
+
+    # Define opcodes
+    # First digit, direction of communication, 0 = client to server (recieved), 1 = server to client (sent)
+    # Second digit, type of encoder/decoder, 0 default(utf-8), 1= pickle object
+    # Third digit, subject of communication, 001 = name registration, 002 = user list, 003 = connect to server mediated, 004 = connect to p2p, 005 = client request p2p
+
     NAME_OPCODE = OPCODE_PREFIX+"001"
-    USER_LIST_OPCODE = OPCODE_PREFIX+"002"
+    PROVIDE_USER_LIST_OPCODE = OPCODE_PREFIX+"012"
     CONNECT_TO_SERVER_MEDIATED_OPCODE = OPCODE_PREFIX+"003"
     CONNECT_TO_P2P_OPCODE = OPCODE_PREFIX+"004"
     CLIENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"005"
-    opcode_length = len(NAME_OPCODE)
+    CONFIRM_NAME_OPCODE = OPCODE_PREFIX+"101"
+    REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"102"
+
+    opcode_length = len(NAME_OPCODE)  # All opcodes are the same length
 
 
 
@@ -110,9 +119,9 @@ def handle_requests(client_socket, client_address, data):
             user_list[client_address] = request_content
             client_socket.sendall(response.encode('utf-8'))
 
-        case codes.USER_LIST_OPCODE:
+        case codes.REQUEST_USER_LIST_OPCODE:
             print(f"Server received request from: {user_list[client_address]}. Sending list...")
-            client_socket.sendall(pickle.dumps(user_list))
+            client_socket.sendall(codes.PROVIDE_USER_LIST_OPCODE.encode("utf-8") + pickle.dumps(user_list))
         case codes.CONNECT_TO_SERVER_MEDIATED_OPCODE:
             print(f"Server received connection request from: {user_list[client_address]}. Prompting for encryption method...")
             prompt_encryption_selection(client_socket)

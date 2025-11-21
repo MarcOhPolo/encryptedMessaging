@@ -6,7 +6,6 @@ from server import codes
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
 
-# currntly only supports NAME_OPCODE and USER_LIST_OPCODE
 # can be expanded to support more opcodes as needed
 # need 2 threads, one for showing user information, the other for the backend conversation with server
 
@@ -19,35 +18,40 @@ def main():
     client_socket.connect((host, port))
     print(greeting_msg)
 
-    message = codes.NAME_OPCODE + input("Enter your name: ")
-    client_socket.sendall(message.encode('utf-8'))
-    
-    data = client_socket.recv(1024)
-    response = data.decode('utf-8')
+    name_registration(client_socket)
 
-    print(f"Server response: {response}")
+    client_interface_thread = threading.Thread(target=client_interface, args=(client_socket,))
+    client_interface_thread.start()
     while True:
         listen_thread = threading.Thread(target=listening_thread, args=(client_socket,))
         listen_thread.start()
-        client_interface_thread = threading.Thread(target=client_interface, args=(client_socket,))
-        client_interface_thread.start()
+
+
+def name_registration(client_socket):
+    message = codes.NAME_OPCODE + input("Enter your name: ")
+    client_socket.sendall(message.encode('utf-8'))
+
+    data = client_socket.recv(1024).decode('utf-8')
+
+    print(f"{data}")
 
 
 def request_userlist_and_display(client_socket):
     # Request user list from server
     # Now uses the EventBus to get the response from the listening thread instead of blocking recv
-    client_socket.sendall(codes.USER_LIST_OPCODE.encode('utf-8'))
+    client_socket.sendall(codes.REQUEST_USER_LIST_OPCODE.encode('utf-8'))
     data = EventBus.get()
-    i=1
-    for str in pickle.loads(data).values():
-        print(f"{i}: {str}")
-        i+=1
-
+    print(f"""
+-----------------------
+User list:
+{data}-----------------------
+""")
+    handle_server_connection(client_socket)
 
 def request_connection(client_socket):
     client_socket.sendall(codes.CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8'))
     data = EventBus.get()
-    print(data.decode('utf-8'))
+
 
 def choose_connection(client_socket):
     data = input("Please select a user to message from the list (type their name)")
