@@ -1,6 +1,7 @@
 import socket
 import pickle
 import threading
+import EventBus
 
 
 class codes:
@@ -16,6 +17,7 @@ class codes:
     CONNECT_TO_SERVER_MEDIATED_OPCODE = OPCODE_PREFIX+"003"
     CONNECT_TO_P2P_OPCODE = OPCODE_PREFIX+"004"
     CLIENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"005"
+    PROVIDE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"016"
     CONFIRM_NAME_OPCODE = OPCODE_PREFIX+"101"
     REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"102"
 
@@ -23,7 +25,25 @@ class codes:
 
 
 
-ENCRYPTION_METHODS = {1,"DIFFIE HELLMAN"}
+ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
+#ENCRYPTION_METHODS = {
+#    1: {
+#        "name": "Diffie Hellman",
+#        "encrypt": diffie_hellman_encrypt,
+#        "decrypt": diffie_hellman_decrypt
+#    },
+#    2: {
+#        "name": "RSA",
+#        "encrypt": rsa_encrypt,
+#        "decrypt": rsa_decrypt
+#    },
+#    3: {
+#        "name": "AES",
+#        "encrypt": aes_encrypt,
+#        "decrypt": aes_decrypt
+#    }
+#}
+
 #BUG:   when server's thread for handling a specific client the user stays on the userlist. This is because
 #       userlist drops are run on the same thread the server uses to handle client connection
 # Solutions:
@@ -43,7 +63,7 @@ def handle_client(client_socket, client_address):
                 # Client closed the connection
                 break
         except ConnectionResetError:
-            print("Connection was reset by the client.")
+            print("Connection was ended by the client.")
             break
         except TimeoutError:
             print("Socket operation timed out.")
@@ -58,23 +78,7 @@ def handle_client(client_socket, client_address):
 
 
 def handle_connection(client_socket, recipient_name):
-    """
-    Handles the process of finding the recipient's address from the user list.
 
-    Parameters:
-        client_socket (socket.socket): The socket object for the client.
-        recipient_name (str): The name of the recipient to look up.
-
-    Returns:
-        recipient_address (tuple): The address of the recipient if found, otherwise None.
-
-    Side Effects:
-        If the recipient is not found, sends a message to the client indicating this.
-
-    Exceptions:
-        Raises KeyError if the recipient is not found in the user list.
-        Handles KeyError by sending an error message to the client and returning None.
-    """
     try:
         # Find the address of the recipient by their name
         recipient_address = next((addr for addr, name in user_list.items() if name == recipient_name), None)
@@ -92,7 +96,7 @@ def handOff_connection(client_socket, client_address, recipient_name):
 
 
 def prompt_encryption_selection(client_socket):
-    client_socket.sendall(pickle.dumps(ENCRYPTION_METHODS))
+    client_socket.sendall(codes.PROVIDE_ENCRYPTION_METHODS_OPCODE.encode('utf-8')+pickle.dumps(ENCRYPTION_METHODS))
     data = client_socket.recv(1024)
     try:
         enc_method = ENCRYPTION_METHODS[data]

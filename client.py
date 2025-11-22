@@ -51,12 +51,14 @@ User list:
 def request_connection(client_socket):
     client_socket.sendall(codes.CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8'))
     data = EventBus.get()
+    print(data)
 
 
 def choose_connection(client_socket):
     data = input("Please select a user to message from the list (type their name)")
     client_socket.sendall(codes.CONNECT_TO_P2P_OPCODE+data.encode('utf-8'))
     data = EventBus.get()
+    print(data)
 
 
 def handle_server_connection(client_socket):
@@ -83,8 +85,7 @@ def choose_connection(client_socket):
     client_socket.sendall((codes.CONNECT_TO_P2P_OPCODE+data).encode('utf-8'))
     #WHEN THE SERVER RESPONDS WITH THE ADDRESS OF THE OTHER CLIENT
     #LAUNCH P2P CONNECTION HERE ON A NEW THREAD
-    data = client_socket.recv(1024)
-    print(data.decode('utf-8'))
+    print(EventBus.get())
 
 
 def client_interface(client_socket):

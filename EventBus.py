@@ -39,13 +39,27 @@ class EventBus:
             case "0":
                 return payload.decode('utf-8')
             case "1":
-                i=1
-                parsed = ""
-                for str in pickle.loads(payload).values():
-                    parsed = parsed + (f"{i}: {str}\n")
-                    i+=1
-                return parsed
+                list = pickle.loads(payload)
+                return EventBus._format_payload_list(opcode, list)
     
+    def _format_payload_list(opcode, payload):
+        match opcode[codes.opcode_length-1]:  # Check the last digit of the opcode
+            case "2":  # User list
+                i=1
+                list = ""
+                for str in payload.values():
+                    list += f"{i}. {str}\n"
+                    i+=1
+                return list
+            case "6":  # Encryption methods
+                i=1
+                list = "Available encryption methods:\n"
+                for str in payload.values():
+                    list += f"{i}. {str}\n"
+                    i+=1
+                return list
+
+
     def _parse_event(event):
         opcode = EventBus._extract_opcode(event).decode('utf-8') # all opcodes are utf-8 encoded
         payload = EventBus._extract_payload(event) # to decode in parser
