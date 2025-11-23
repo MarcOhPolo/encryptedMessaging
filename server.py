@@ -20,6 +20,7 @@ class codes:
     PROVIDE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"016"
     CONFIRM_NAME_OPCODE = OPCODE_PREFIX+"101"
     REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"102"
+    PROVIDE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"104"
 
     opcode_length = len(NAME_OPCODE)  # All opcodes are the same length
 
@@ -77,8 +78,7 @@ def handle_client(client_socket, client_address):
         user_list.pop(client_address)
 
 
-def handle_connection(client_socket, recipient_name):
-
+def find_recipient(client_socket, recipient_name):
     try:
         # Find the address of the recipient by their name
         recipient_address = next((addr for addr, name in user_list.items() if name == recipient_name), None)
@@ -86,35 +86,40 @@ def handle_connection(client_socket, recipient_name):
             return recipient_address
         client_socket.sendall(("Recipient not found. Please try again.").encode('utf-8'))
     except KeyError:
-        return None
+        return None 
 
 def handOff_connection(client_socket, client_address, recipient_name):
-        recipient_address = handle_connection(client_socket, recipient_name=recipient_name) 
-        socket.socket.sendto(recipient_address, f"Client {user_list[client_address]} wants to connect with you.".encode('utf-8'))
-        socket.socket.sendto(client_address, f"Connecting you to {recipient_name}, sending address to client...".encode('utf-8'))
-        socket.socket.sendto(client_socket, recipient_address.encode('utf-8'))
+        recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
+        client_socket.sendto(f"Client {user_list[client_address]} wants to connect with you.".encode('utf-8'),recipient_address)
+        client_socket.sendall(codes.PROVIDE_CLIENT_ADDRESS_OPCODE.encode('utf-8') + str(recipient_address).encode('utf-8'))
 
 
-def prompt_encryption_selection(client_socket):
+def prompt_encryption_selection(client_socket, opcode, target):
     client_socket.sendall(codes.PROVIDE_ENCRYPTION_METHODS_OPCODE.encode('utf-8')+pickle.dumps(ENCRYPTION_METHODS))
     data = client_socket.recv(1024)
     try:
         enc_method = ENCRYPTION_METHODS[data]
+        while True:
+            middle_man_messages(client_socket, target, enc_method)
     except:
         client_socket.sendall(("No such method try again").encode('utf-8'))
-    
+    def middle_man_messages(client_socket, target, enc_method):
+        message = client_socket.recv(1024)
+        target_address = find_recipient(client_socket, target)
+        pass  # Placeholder for message handling logic
+
 
 def handle_requests(client_socket, client_address, data):
 
     request = data.decode('utf-8')
-    op_code = request[:codes.opcode_length]
+    opcode = request[:codes.opcode_length]
 
     try:
         request_content = request[codes.opcode_length:]
     except:
         print("Message with no content, only opcode")
 
-    match op_code:
+    match opcode:
 
         case codes.NAME_OPCODE:
 
@@ -128,12 +133,12 @@ def handle_requests(client_socket, client_address, data):
             client_socket.sendall(codes.PROVIDE_USER_LIST_OPCODE.encode("utf-8") + pickle.dumps(user_list))
         case codes.CONNECT_TO_SERVER_MEDIATED_OPCODE:
             print(f"Server received connection request from: {user_list[client_address]}. Prompting for encryption method...")
-            prompt_encryption_selection(client_socket)
+            prompt_encryption_selection(client_socket, opcode, request_content)
         case codes.CONNECT_TO_P2P_OPCODE:
             print(f"Server received p2p connection request from: {user_list[client_address]}. Initiating handoff...")
             handOff_connection(client_socket, client_address, request_content)
         case _:
-            print(f"Check opcode: {op_code}")
+            print(f"Check opcode: {opcode}")
 
 
 def main():

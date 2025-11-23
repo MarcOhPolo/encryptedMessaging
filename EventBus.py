@@ -1,5 +1,4 @@
 from queue import Queue
-from collections import deque
 from server import codes
 import pickle
 
@@ -62,5 +61,6 @@ class EventBus:
 
     def _parse_event(event):
         opcode = EventBus._extract_opcode(event).decode('utf-8') # all opcodes are utf-8 encoded
+        print(f"EventBus parsing event with opcode: {opcode}")
         payload = EventBus._extract_payload(event) # to decode in parser
         return (EventBus._decode_payload(opcode, payload))

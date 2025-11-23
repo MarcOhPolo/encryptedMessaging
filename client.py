@@ -46,17 +46,11 @@ def request_userlist_and_display(client_socket):
 User list:
 {data}-----------------------
 """)
-    handle_server_connection(client_socket)
 
 def request_connection(client_socket):
-    client_socket.sendall(codes.CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8'))
-    data = EventBus.get()
-    print(data)
-
-
-def choose_connection(client_socket):
-    data = input("Please select a user to message from the list (type their name)")
-    client_socket.sendall(codes.CONNECT_TO_P2P_OPCODE+data.encode('utf-8'))
+    request_userlist_and_display(client_socket)
+    target = input ("Select a user to connect to through the server (enter name, press enter to continue)")
+    client_socket.sendall(codes.CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8')+target.encode('utf-8'))
     data = EventBus.get()
     print(data)
 
@@ -71,6 +65,7 @@ def handle_server_connection(client_socket):
     match request:
         case "U":
             request_userlist_and_display(client_socket)
+            handle_server_connection(client_socket)
         case "S":
             request_connection(client_socket)
         case "D":
@@ -81,8 +76,8 @@ def handle_server_connection(client_socket):
 
  
 def choose_connection(client_socket):
-    data = input("Please select a user to message from the list (type their name)")
-    client_socket.sendall((codes.CONNECT_TO_P2P_OPCODE+data).encode('utf-8'))
+    target = select_target_user(client_socket)
+    client_socket.sendall(codes.CONNECT_TO_P2P_OPCODE.encode('utf-8')+target.encode('utf-8'))
     #WHEN THE SERVER RESPONDS WITH THE ADDRESS OF THE OTHER CLIENT
     #LAUNCH P2P CONNECTION HERE ON A NEW THREAD
     print(EventBus.get())
@@ -92,6 +87,10 @@ def client_interface(client_socket):
     #When server connection is established, handle interactions
     handle_server_connection(client_socket)
 
+def select_target_user(client_socket):
+    request_userlist_and_display(client_socket)
+    data = input("Please select a user to message from the list (type their name): ")
+    return data
 
 def listening_thread(client_socket):
     while True:
