@@ -32,10 +32,13 @@ def name_registration(client_socket):
     print(f"{data}")
 
 
-def request_userlist(client_socket):
+def request_userlist(client_socket, args=None):
     # Request user list from server
     # Now uses the EventBus to get the response from the listening thread instead of blocking recv
     client_socket.sendall(codes.REQUEST_USER_LIST_OPCODE.encode('utf-8'))
+    time.sleep(0.5)  # Give some time for the server to respond
+    data = EventBus.get()
+    display_userlist(data)
 
 def request_connection(client_socket):
     request_userlist(client_socket)
@@ -95,8 +98,7 @@ def cmd(client_socket):
         name, args = parts[0], parts[1:]
 
         if name in COMMANDS:
-            result = COMMANDS[name](args)
-            print(result)
+            COMMANDS[name](client_socket, args)
         else:
             print(f"Unknown command: {name}")
 
