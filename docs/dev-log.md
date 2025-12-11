@@ -44,19 +44,10 @@ For example, I now need to send tuples (containing the peer’s IP and port), an
 tuple → string → encoded and then decoded → string → tuple
 is extremely clunky and error-prone. JSON solves this cleanly, and it will also let me add future features like timestamps or message metadata without fighting the format. I always knew this transition would happen eventually, and it shouldn’t take long to implement… (famous last words lol).
 
-### YYYY-MM-DD
-**Work Completed:**  
--  
-
-**Challenges / Issues:**  
--  
-
-**Decisions Made:**  
--  
-
-**Next Steps:**  
--  
-
+### 2025-11-24
+Realised massive problem with asychronous events which needs to be fixed later on.
+I need to redesign a lot of the way the client intreracts with the terminal; the current method is causing problems such as:
+Inputs are interrupted by incoming connection requests. The root cause is that I don't have a cohesive vision for how the UI should actually look like. I want to stay within the terminal for the minial approach and don't want to bother with GUI libraries, however it is very limiting. I might try to make certain segments of the terminal that change live for incoming connection requests and an area just for the user to type commands, or I can have everything in demand from a user such that interuptions to the user only appear once they make a explicit request like: /userlist - then they can do /request [user]. This might make more sense than having a main menu which is the main problem.
 ---
 
 ### YYYY-MM-DD

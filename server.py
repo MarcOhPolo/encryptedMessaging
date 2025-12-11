@@ -2,6 +2,7 @@ import socket
 import pickle
 import threading
 import EventBus
+import simplejson as json
 
 
 class codes:
@@ -91,7 +92,13 @@ def find_recipient(client_socket, recipient_name):
 def handOff_connection(client_socket, client_address, recipient_name):
         recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
         client_socket.sendto(f"Client {user_list[client_address]} wants to connect with you.".encode('utf-8'),recipient_address)
-        client_socket.sendall(codes.PROVIDE_CLIENT_ADDRESS_OPCODE.encode('utf-8') + str(recipient_address).encode('utf-8'))
+        packet = {
+                "opcode": codes.PROVIDE_CLIENT_ADDRESS_OPCODE,
+                "address": {
+                "ip": recipient_address[0],
+                "port": recipient_address[1]
+    }
+}
 
 
 def prompt_encryption_selection(client_socket, opcode, target):

@@ -1,6 +1,7 @@
 from queue import Queue
 from server import codes
 import pickle
+import json
 
 class EventBus:
     _queue = Queue()
@@ -17,8 +18,8 @@ class EventBus:
         EventBus._queue.put(event)
 
     @staticmethod
-    def get():
-        event = EventBus._queue.get(True)
+    def get(block=False,timeout=None):
+        event = EventBus._queue.get(block=block,timeout=timeout)
         return EventBus._parse_event(event)
     
     @staticmethod
@@ -28,6 +29,10 @@ class EventBus:
     @staticmethod
     def _extract_payload(event):
         return event[codes.opcode_length:]
+    
+    @staticmethod
+    def isEmpty():
+        return EventBus._queue.empty()
     
     @staticmethod
     def _decompose_event(event):
@@ -40,6 +45,8 @@ class EventBus:
             case "1":
                 list = pickle.loads(payload)
                 return EventBus._format_payload_list(opcode, list)
+            case "2":
+                json.loads(payload)
     
     def _format_payload_list(opcode, payload):
         match opcode[codes.opcode_length-1]:  # Check the last digit of the opcode
@@ -61,6 +68,5 @@ class EventBus:
 
     def _parse_event(event):
         opcode = EventBus._extract_opcode(event).decode('utf-8') # all opcodes are utf-8 encoded
-        print(f"EventBus parsing event with opcode: {opcode}")
         payload = EventBus._extract_payload(event) # to decode in parser
         return (EventBus._decode_payload(opcode, payload))
