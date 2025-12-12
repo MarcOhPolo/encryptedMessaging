@@ -50,18 +50,8 @@ I need to redesign a lot of the way the client intreracts with the terminal; the
 Inputs are interrupted by incoming connection requests. The root cause is that I don't have a cohesive vision for how the UI should actually look like. I want to stay within the terminal for the minial approach and don't want to bother with GUI libraries, however it is very limiting. I might try to make certain segments of the terminal that change live for incoming connection requests and an area just for the user to type commands, or I can have everything in demand from a user such that interuptions to the user only appear once they make a explicit request like: /userlist - then they can do /request [user]. This might make more sense than having a main menu which is the main problem.
 ---
 
-### YYYY-MM-DD
-**Work Completed:**  
--  
-
-**Challenges / Issues:**  
--  
-
-**Decisions Made:**  
--  
-
-**Next Steps:**  
--  
+### 2025-12-10
+Before finishing the new command system, I am making changes to how eventbus works. Right now it's a singular queue where every kind of request goes into, however I am running into a problem where due to having asynchoronous events such as: p2p connection requests, when I do Eventbus.get() the queue might pop a p2p connection request instead of the thing intended. Right now I can't include a search for a specific op code which makes the process difficult, I've decided to implement Eventbus with multiple queues inside to make it easier
 
 ---
 

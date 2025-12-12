@@ -19,9 +19,9 @@ class codes:
     CONNECT_TO_P2P_OPCODE = OPCODE_PREFIX+"004"
     CLIENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"005"
     PROVIDE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"016"
-    CONFIRM_NAME_OPCODE = OPCODE_PREFIX+"101"
+    RESPONSE_NAME_OPCODE = OPCODE_PREFIX+"111"
     REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"102"
-    PROVIDE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"104"
+    RESPONSE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"114"
 
     opcode_length = len(NAME_OPCODE)  # All opcodes are the same length
 
@@ -93,7 +93,7 @@ def handOff_connection(client_socket, client_address, recipient_name):
         recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
         client_socket.sendto(f"Client {user_list[client_address]} wants to connect with you.".encode('utf-8'),recipient_address)
         packet = {
-                "opcode": codes.PROVIDE_CLIENT_ADDRESS_OPCODE,
+                "opcode": codes.RESPONSE_CLIENT_ADDRESS_OPCODE,
                 "address": {
                 "ip": recipient_address[0],
                 "port": recipient_address[1]
