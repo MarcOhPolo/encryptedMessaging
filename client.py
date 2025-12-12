@@ -16,7 +16,6 @@ def main():
 
     client_socket.connect((host, port))
     print(greeting_msg)
-
     name_registration(client_socket)
 
     client_interface_thread = threading.Thread(target=cmd, args=(client_socket,))
@@ -37,22 +36,22 @@ def request_userlist(client_socket, args=None):
     # Now uses the EventBus to get the response from the listening thread instead of blocking recv
     client_socket.sendall(codes.REQUEST_USER_LIST_OPCODE.encode('utf-8'))
     time.sleep(0.5)  # Give some time for the server to respond
-    data = EventBus.get()
+    data = EventBus.get_from_queue(codes.RESPONSE_USER_LIST_OPCODE)
     display_userlist(data)
 
-def request_connection(client_socket):
+def request_connection(client_socket,args):
     request_userlist(client_socket)
     target = input ("Select a user to connect to through the server (enter name, press enter to continue)")
     client_socket.sendall(codes.CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8')+target.encode('utf-8'))
-    data = EventBus.get()
+    data = EventBus.get_from_queue(codes.RESPONSE_CLIENT_ADDRESS_OPCODE)
     print(data)
 
-def choose_connection(client_socket):
+def choose_connection(client_socket, args):
     target = select_target_user(client_socket)
     client_socket.sendall(codes.CONNECT_TO_P2P_OPCODE.encode('utf-8')+target.encode('utf-8'))
     #WHEN THE SERVER RESPONDS WITH THE ADDRESS OF THE OTHER CLIENT
     #LAUNCH P2P CONNECTION HERE ON A NEW THREAD
-    print(EventBus.get())
+    print(EventBus.get_from_queue(codes.RESPONSE_CLIENT_ADDRESS_OPCODE))
 
 def select_target_user(client_socket):
     request_userlist(client_socket)
@@ -72,13 +71,15 @@ def listening_thread(client_socket):
         if data:
             EventBus.publish(data)
 
-
 def request_counter(connection_requests=[]):
     print(f"Connection requests: {len(connection_requests)}")
 
 
 COMMANDS = {
     "userlist": request_userlist,
+    "p2p": choose_connection,
+    "server-mediated": request_connection,
+    "requests": request_counter,
 }
 
 

@@ -8,7 +8,7 @@ Start Date: <2025-9-23>
 ## Overview
 A development log documenting the progress of building a Python-based messaging system using sockets. This log captures decisions, challenges, design changes, and lessons learned throughout the project.
 
-The purpose of this project is to practice my programming skils, learn about encryption schemes (strengths and weaknesses) but also a deeper understanding of networking. To this end I will not be using any guides, or information about how messaging protocols work or other networking details (except encryption schemes but I will detail where I learn things from and what for). The point to use my own intuition to try to "reinvent the wheel" so to speak, and in that process hopefully learn as much as possible, and by then end *hopefully* have a working, albeit a very limited, messaging service of my own!
+The purpose of this project is to practice my programming skils, learn about encryption schemes (strengths and weaknesses) but also a deeper understanding of networking. To this end I will not be using any guides, or information about how messaging protocols work or other networking details (except encryption schemes but I will detail where I learn things from and what for). The point to use my own intuition to try to "reinvent the wheel" so to speak, and in that process hopefully learn as much as possible, and by then end *hopefully* have a working, albeit a very limited, messaging service of my own! This dev-log is to document the process, talk about the things I've done, crystalise them into actual sentences so I remember and have a chance to research and make the most of learning out of this project.
 
 ---
 
@@ -45,24 +45,29 @@ tuple → string → encoded and then decoded → string → tuple
 is extremely clunky and error-prone. JSON solves this cleanly, and it will also let me add future features like timestamps or message metadata without fighting the format. I always knew this transition would happen eventually, and it shouldn’t take long to implement… (famous last words lol).
 
 ### 2025-11-24
+
 Realised massive problem with asychronous events which needs to be fixed later on.
 I need to redesign a lot of the way the client intreracts with the terminal; the current method is causing problems such as:
 Inputs are interrupted by incoming connection requests. The root cause is that I don't have a cohesive vision for how the UI should actually look like. I want to stay within the terminal for the minial approach and don't want to bother with GUI libraries, however it is very limiting. I might try to make certain segments of the terminal that change live for incoming connection requests and an area just for the user to type commands, or I can have everything in demand from a user such that interuptions to the user only appear once they make a explicit request like: /userlist - then they can do /request [user]. This might make more sense than having a main menu which is the main problem.
+
+Basically Bad/Incomplete vision for UI -> Concurrency issues.
+
+Note from later: I have added the terminal command system and it is much better with the multi queue bus structure it works like magic! Now when the user goes down a controlled path of steps that block the UI I can search in specific queues for different types of communications, rather than hoping that the user doesn't get a connection request from someone whilst they select someone to connect to, now the user can look for the username want to connect to, and the request isn't forced into the feed, instead the user can make a command to check.
+A useful QOL feature for the user is some sort of notifcation/indication of when a request is recieved.
 ---
 
-### YYYY-MM-DD
-**Work Completed:**  
--  
+### 2025-12-10
 
-**Challenges / Issues:**  
--  
+Before finishing the new command system, I am making changes to how eventbus works. Right now it's a singular queue where every kind of request goes into, however I am running into a problem where due to having asynchoronous events such as: p2p connection requests, when I do Eventbus.get() the queue might pop a p2p connection request instead of the thing intended. Right now I can't include a search for a specific op code which makes the process difficult, I've decided to implement Eventbus with multiple queues inside to make it easier. Also adding future features should be easy, so I'll try to make it as easy as possible to add new queues.
+I was expecting this to be much more difficult than it actually was, but it turned out super easy because I put a lot of thought into the design of the EventBus ahead of time. I had to make very little changes to the EventBus as everything plugged in very nicely. I was honestly super suprised when I first tried!
 
-**Decisions Made:**  
--  
+Now the EventBus has an extra step:
+Recieves event -> Decodes opcode -> Places event into corrosponding queue -> awaits a get() with an opcode -> access queue for corrosponding opcode -> decodes event -> sends payload
 
-**Next Steps:**  
--  
+This process might be an example of a real world term called:
+Event Multiplexing  
 
+The code is in a good place so I am going to back and review the code and clean it up, maybe write some documentation for the parts that most likely won't change.
 ---
 
 ## Architecture or Concept Notes (Optional)
