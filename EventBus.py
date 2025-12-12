@@ -4,14 +4,15 @@ import pickle
 import json
 
 class EventBus:
-    _queue = Queue()
 
+
+    _queues = {
+        code: Queue()
+        for code in codes.__dict__.values()
+        if isinstance(code, str) and len(code) >= 3 and code[codes.POSITION_OF_DATA_FLOW] == "1"
+    }
     # Custom event bus to handle events between threads, can add locks, or other features as needed
     # Make all methods static so that we don't need to instantiate the class
-
-
-    #TODO: MAKE ERROR HANDLING
-
 
     @staticmethod
     def publish(event):
@@ -20,14 +21,14 @@ class EventBus:
     @staticmethod
     def get(block=False,timeout=None):
         event = EventBus._queue.get(block=block,timeout=timeout)
-        return EventBus._parse_event(event)
+        return EventBus.__parse_event(event)
     
     @staticmethod
-    def _extract_opcode(event):
+    def __extract_opcode(event):
         return event[:codes.opcode_length]
     
     @staticmethod
-    def _extract_payload(event):
+    def __extract_payload(event):
         return event[codes.opcode_length:]
     
     @staticmethod
@@ -35,21 +36,21 @@ class EventBus:
         return EventBus._queue.empty()
     
     @staticmethod
-    def _decompose_event(event):
-        return (EventBus._extract_opcode(event), EventBus._extract_payload(event))
+    def __decompose_event(event):
+        return (EventBus.__extract_opcode(event), EventBus.__extract_payload(event))
 
-    def _decode_payload(opcode, payload):
-        match opcode[codes.opcode_length-2]:  # Check the second digit of the opcode
+    def __decode_payload(opcode, payload):
+        match opcode[codes.POSITION_OF_ENCODING_TYPE]:  # Check the second digit of the opcode
             case "0":
                 return payload.decode('utf-8')
             case "1":
                 list = pickle.loads(payload)
-                return EventBus._format_payload_list(opcode, list)
+                return EventBus.__format_payload_list(opcode, list)
             case "2":
                 json.loads(payload)
     
-    def _format_payload_list(opcode, payload):
-        match opcode[codes.opcode_length-1]:  # Check the last digit of the opcode
+    def __format_payload_list(opcode, payload):
+        match opcode[codes.POSITION_OF_SUBJECT]:  # Check the last digit of the opcode
             case "2":  # User list
                 i=1
                 list = ""
@@ -66,7 +67,7 @@ class EventBus:
                 return list
 
 
-    def _parse_event(event):
-        opcode = EventBus._extract_opcode(event).decode('utf-8') # all opcodes are utf-8 encoded
-        payload = EventBus._extract_payload(event) # to decode in parser
-        return (EventBus._decode_payload(opcode, payload))
+    def __parse_event(event):
+        opcode = EventBus.__extract_opcode(event).decode('utf-8') # all opcodes are utf-8 encoded
+        payload = EventBus.__extract_payload(event) # to decode in parser
+        return (EventBus.__decode_payload(opcode, payload))

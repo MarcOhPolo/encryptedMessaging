@@ -16,7 +16,6 @@ def main():
 
     client_socket.connect((host, port))
     print(greeting_msg)
-
     name_registration(client_socket)
 
     client_interface_thread = threading.Thread(target=cmd, args=(client_socket,))
