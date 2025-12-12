@@ -17,11 +17,11 @@ class codes:
     POSITION_OF_SUBJECT = -1  # Position of subject digit in opcode
 
     NAME_OPCODE = OPCODE_PREFIX+"001"
-    PROVIDE_USER_LIST_OPCODE = OPCODE_PREFIX+"112"
+    RESPONSE_USER_LIST_OPCODE = OPCODE_PREFIX+"112"
     CONNECT_TO_SERVER_MEDIATED_OPCODE = OPCODE_PREFIX+"003"
     CONNECT_TO_P2P_OPCODE = OPCODE_PREFIX+"004"
     CLIENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"005"
-    PROVIDE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"116"
+    RESPONSE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"116"
     RESPONSE_NAME_OPCODE = OPCODE_PREFIX+"101"
     REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"002"
     RESPONSE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"124"
@@ -93,19 +93,18 @@ def find_recipient(client_socket, recipient_name):
         return None 
 
 def handOff_connection(client_socket, client_address, recipient_name):
-        recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
-        client_socket.sendto(f"Client {user_list[client_address]} wants to connect with you.".encode('utf-8'),recipient_address)
-        packet = {
-                "opcode": codes.RESPONSE_CLIENT_ADDRESS_OPCODE,
-                "address": {
-                "ip": recipient_address[0],
-                "port": recipient_address[1]
-    }
-}
+    recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
+    packet = json.dumps({
+            "address": {
+            "ip": recipient_address[0],
+            "port": recipient_address[1]}
+            })
+    client_socket.sendto(codes.RESPONSE_CLIENT_ADDRESS_OPCODE.encode('utf-8')+packet.encode('utf-8'),recipient_address)
+
 
 
 def prompt_encryption_selection(client_socket, opcode, target):
-    client_socket.sendall(codes.PROVIDE_ENCRYPTION_METHODS_OPCODE.encode('utf-8')+pickle.dumps(ENCRYPTION_METHODS))
+    client_socket.sendall(codes.RESPONSE_ENCRYPTION_METHODS_OPCODE.encode('utf-8')+pickle.dumps(ENCRYPTION_METHODS))
     data = client_socket.recv(1024)
     try:
         enc_method = ENCRYPTION_METHODS[data]
@@ -140,7 +139,7 @@ def handle_requests(client_socket, client_address, data):
 
         case codes.REQUEST_USER_LIST_OPCODE:
             print(f"Server received request from: {user_list[client_address]}. Sending list...")
-            client_socket.sendall(codes.PROVIDE_USER_LIST_OPCODE.encode("utf-8") + pickle.dumps(user_list))
+            client_socket.sendall(codes.RESPONSE_USER_LIST_OPCODE.encode("utf-8") + pickle.dumps(user_list))
         case codes.CONNECT_TO_SERVER_MEDIATED_OPCODE:
             print(f"Server received connection request from: {user_list[client_address]}. Prompting for encryption method...")
             prompt_encryption_selection(client_socket, opcode, request_content)

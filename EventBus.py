@@ -5,7 +5,7 @@ import json
 
 class EventBus:
 
-
+    # Initialize queues for each opcode that requires event handling
     _queues = {
         code: Queue()
         for code in codes.__dict__.values()
@@ -16,7 +16,11 @@ class EventBus:
 
     @staticmethod
     def publish(event):
-        EventBus._queue.put(event)
+        EventBus.put(event)
+    
+    def put(event):
+        opcode = EventBus.__extract_opcode(event).decode('utf-8')
+        EventBus._queues[opcode].put(event)
 
     @staticmethod
     def get(block=False,timeout=None):
@@ -47,7 +51,7 @@ class EventBus:
                 list = pickle.loads(payload)
                 return EventBus.__format_payload_list(opcode, list)
             case "2":
-                json.loads(payload)
+                return json.loads(payload)
     
     def __format_payload_list(opcode, payload):
         match opcode[codes.POSITION_OF_SUBJECT]:  # Check the last digit of the opcode
@@ -66,8 +70,11 @@ class EventBus:
                     i+=1
                 return list
 
-
     def __parse_event(event):
         opcode = EventBus.__extract_opcode(event).decode('utf-8') # all opcodes are utf-8 encoded
         payload = EventBus.__extract_payload(event) # to decode in parser
         return (EventBus.__decode_payload(opcode, payload))
+    
+    def get_from_queue(opcode, block=True, timeout=0.5):
+        event = EventBus._queues[opcode].get(block=block, timeout=timeout)
+        return EventBus.__parse_event(event)
