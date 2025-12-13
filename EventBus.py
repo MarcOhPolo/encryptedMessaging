@@ -54,21 +54,14 @@ class EventBus:
                 return json.loads(payload)
     
     def __format_payload_list(opcode, payload):
-        match opcode[codes.POSITION_OF_SUBJECT]:  # Check the last digit of the opcode
-            case "2":  # User list
-                i=1
-                list = ""
-                for str in payload.values():
-                    list += f"{i}. {str}\n"
-                    i+=1
-                return list
-            case "6":  # Encryption methods
-                i=1
-                list = "Available encryption methods:\n"
-                for str in payload.values():
-                    list += f"{i}. {str}\n"
-                    i+=1
-                return list
+        def numbered(values):
+            return "\n".join(f"{i}. {value}"for i, value in enumerate(values, start=1)) + "\n"
+        match opcode[codes.POSITION_OF_SUBJECT]:
+            case "2":
+                return numbered(payload.values())
+            case "6":
+                return "Available encryption methods:\n" + numbered(payload.values())
+
 
     def __parse_event(event):
         opcode = EventBus.__extract_opcode(event).decode('utf-8') # all opcodes are utf-8 encoded
