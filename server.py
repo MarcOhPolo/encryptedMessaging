@@ -61,36 +61,42 @@ user_list = {}
 
 
 def handle_client(client_socket, client_address):
-    while True:
-        try:
-            data = client_socket.recv(1024)
-            if not data:
-                # Client closed the connection
+    with client_socket:
+        while True:
+            try:
+                data = client_socket.recv(1024)
+                if not data:
+                    break  # client closed the connection
+
+            except ConnectionResetError:
+                print("Connection was ended by the client.")
                 break
-        except ConnectionResetError:
-            print("Connection was ended by the client.")
-            break
-        except TimeoutError:
-            print("Socket operation timed out.")
-            break
-        except Exception as e:
-            print(f"Unexpected socket error: {e}")
-            break
-        handle_requests(client_socket,client_address,data)
-    client_socket.close()
-    if user_list[client_address]:
-        user_list.pop(client_address)
+
+            except TimeoutError:
+                print("Socket operation timed out.")
+                break
+
+            except Exception as e:
+                print(f"Unexpected socket error: {e}")
+                break
+
+            handle_requests(client_socket, client_address, data)
+
+    if client_address in user_list:
+        user_list.pop(client_address, None)
 
 
 def find_recipient(client_socket, recipient_name):
-    try:
-        # Find the address of the recipient by their name
-        recipient_address = next((addr for addr, name in user_list.items() if name == recipient_name), None)
-        if recipient_address is not None:
-            return recipient_address
-        client_socket.sendall(("Recipient not found. Please try again.").encode('utf-8'))
-    except KeyError:
-        return None 
+    recipient_address = next(
+    (addr for addr, name in user_list.items() if name == recipient_name),
+    None)
+
+    if recipient_address is not None:
+        return recipient_address
+
+    client_socket.sendall(("Recipient not found. Please try again.").encode('utf-8'))
+    return None
+
 
 def handOff_connection(client_socket, client_address, recipient_name):
     recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
@@ -100,7 +106,6 @@ def handOff_connection(client_socket, client_address, recipient_name):
             "port": recipient_address[1]}
             })
     client_socket.sendto(codes.RESPONSE_CLIENT_ADDRESS_OPCODE.encode('utf-8')+packet.encode('utf-8'),recipient_address)
-
 
 
 def prompt_encryption_selection(client_socket, opcode, target):

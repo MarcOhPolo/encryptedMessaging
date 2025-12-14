@@ -35,16 +35,15 @@ def request_userlist(client_socket, args=None):
     # Request user list from server
     # Now uses the EventBus to get the response from the listening thread instead of blocking recv
     client_socket.sendall(codes.REQUEST_USER_LIST_OPCODE.encode('utf-8'))
-    time.sleep(0.5)  # Give some time for the server to respond
     data = EventBus.get_from_queue(codes.RESPONSE_USER_LIST_OPCODE)
-    display_userlist(data)
+    return data
 
 def request_connection(client_socket,args):
-    request_userlist(client_socket)
-    target = input ("Select a user to connect to through the server (enter name, press enter to continue)")
+    target = select_target_user(client_socket)
     client_socket.sendall(codes.CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8')+target.encode('utf-8'))
     data = EventBus.get_from_queue(codes.RESPONSE_CLIENT_ADDRESS_OPCODE)
     print(data)
+
 
 def choose_connection(client_socket, args):
     target = select_target_user(client_socket)
@@ -53,17 +52,24 @@ def choose_connection(client_socket, args):
     #LAUNCH P2P CONNECTION HERE ON A NEW THREAD
     print(EventBus.get_from_queue(codes.RESPONSE_CLIENT_ADDRESS_OPCODE))
 
-def select_target_user(client_socket):
-    request_userlist(client_socket)
-    data = input("Please select a user to message from the list (type their name): ")
-    return data
 
-def display_userlist(event_payload):
-    print(f"""
------------------------ 
-User list:
-{event_payload}-----------------------
-""")
+def select_target_user(client_socket):
+    userlist = display_userlist(client_socket)
+    while True:
+        target = input("Select a user to connect to directly (enter name): ")
+        if target in userlist["values"].values():
+            print(f"Selected user: {target}")
+            break
+    return target
+
+
+def display_userlist(client_socket, args=None):
+    event_payload = request_userlist(client_socket)
+    print(f"""User List:\n
+    {event_payload["formatted"]}
+    """)
+    return event_payload
+
 
 def listening_thread(client_socket):
     while True:
@@ -71,12 +77,12 @@ def listening_thread(client_socket):
         if data:
             EventBus.publish(data)
 
+
 def request_counter(connection_requests=[]):
     print(f"Connection requests: {len(connection_requests)}")
 
-
 COMMANDS = {
-    "userlist": request_userlist,
+    "userlist": display_userlist,
     "p2p": choose_connection,
     "server-mediated": request_connection,
     "requests": request_counter,

@@ -47,12 +47,16 @@ class EventBus:
         match opcode[codes.POSITION_OF_ENCODING_TYPE]:  # Check the second digit of the opcode
             case "0":
                 return payload.decode('utf-8')
-            case "1":
+            case "1": # Userlist encoded with pickle
                 list = pickle.loads(payload)
-                return EventBus.__format_payload_list(opcode, list)
+                return {
+                    "formatted": EventBus.__format_payload_list(opcode, list),
+                    "values": list
+                }
+
             case "2":
                 return json.loads(payload)
-    
+
     def __format_payload_list(opcode, payload):
         def numbered(values):
             return "\n".join(f"{i}. {value}"for i, value in enumerate(values, start=1)) + "\n"
@@ -68,6 +72,7 @@ class EventBus:
         payload = EventBus.__extract_payload(event) # to decode in parser
         return (EventBus.__decode_payload(opcode, payload))
     
+
     def get_from_queue(opcode, block=True, timeout=0.5):
         event = EventBus._queues[opcode].get(block=block, timeout=timeout)
         return EventBus.__parse_event(event)
