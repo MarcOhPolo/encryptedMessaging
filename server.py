@@ -30,6 +30,7 @@ class codes:
 
 
 
+
 ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 #ENCRYPTION_METHODS = {
 #    1: {
@@ -52,14 +53,14 @@ ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 #BUG:   when server's thread for handling a specific client the user stays on the userlist. This is because
 #       userlist drops are run on the same thread the server uses to handle client connection
 # Solutions:
-#1 - Make userlist updates run on the main thread of server - then each child 
+# 1 - Make userlist updates run on the main thread of server - then each child 
 # thread can share that userlist using locks. Then the server can look at active threads/connections
 # and decide to pop from dictionary if connection or thread has crashed
 
 
 user_list = {}
 
-
+#---- CLIENT HANDLERS -----#
 def handle_client(client_socket, client_address):
     with client_socket:
         while True:
@@ -123,38 +124,71 @@ def prompt_encryption_selection(client_socket, opcode, target):
         pass  # Placeholder for message handling logic
 
 
+#---- OPCODE HANDLERS -----#
 def handle_requests(client_socket, client_address, data):
 
-    request = data.decode('utf-8')
+    request = data.decode("utf-8")
+
+    if len(request) < codes.opcode_length:
+        print("Invalid request: missing opcode")
+        return
+
     opcode = request[:codes.opcode_length]
-
-    try:
-        request_content = request[codes.opcode_length:]
-    except:
-        print("Message with no content, only opcode")
-
-    match opcode:
-
-        case codes.NAME_OPCODE:
-
-            print(f"Received name: {request_content}")
-            response = "Server received your name: " + request_content
-            user_list[client_address] = request_content
-            client_socket.sendall(response.encode('utf-8'))
-
-        case codes.REQUEST_USER_LIST_OPCODE:
-            print(f"Server received request from: {user_list[client_address]}. Sending list...")
-            client_socket.sendall(codes.RESPONSE_USER_LIST_OPCODE.encode("utf-8") + pickle.dumps(user_list))
-        case codes.CONNECT_TO_SERVER_MEDIATED_OPCODE:
-            print(f"Server received connection request from: {user_list[client_address]}. Prompting for encryption method...")
-            prompt_encryption_selection(client_socket, opcode, request_content)
-        case codes.CONNECT_TO_P2P_OPCODE:
-            print(f"Server received p2p connection request from: {user_list[client_address]}. Initiating handoff...")
-            handOff_connection(client_socket, client_address, request_content)
-        case _:
-            print(f"Check opcode: {opcode}")
+    request_content = request[codes.opcode_length:]
 
 
+    handler = OPCODE_HANDLERS.get(opcode)
+
+    if handler is None:
+        print(f"Unknown opcode: {opcode}")
+        return
+
+    handler(client_socket, client_address, request_content)
+
+
+def handle_name(client_socket, client_address, content):
+    print(f"Received name: {content}")
+    user_list[client_address] = content
+    response = f"Server received your name: {content}"
+    client_socket.sendall(response.encode("utf-8"))
+
+
+def handle_user_list_request(client_socket, client_address, _):
+    username = user_list.get(client_address, "UNKNOWN")
+    print(f"Server received request from: {username}. Sending list...")
+    payload = (
+        codes.RESPONSE_USER_LIST_OPCODE.encode("utf-8") +
+        pickle.dumps(user_list)
+    )
+    client_socket.sendall(payload)
+
+
+def handle_mediated_connection(client_socket, client_address, content):
+    print(
+        f"Server received connection request from: "
+        f"{user_list.get(client_address, 'UNKNOWN')}. "
+        "Prompting for encryption method..."
+    )
+    prompt_encryption_selection(client_socket, codes.CONNECT_TO_SERVER_MEDIATED_OPCODE, content)
+
+
+def handle_p2p_connection(client_socket, client_address, content):
+    print(
+        f"Server received p2p connection request from: "
+        f"{user_list.get(client_address, 'UNKNOWN')}. Initiating handoff..."
+    )
+    handOff_connection(client_socket, client_address, content)
+
+
+OPCODE_HANDLERS = {
+    codes.NAME_OPCODE: handle_name,
+    codes.REQUEST_USER_LIST_OPCODE: handle_user_list_request,
+    codes.CONNECT_TO_SERVER_MEDIATED_OPCODE: handle_mediated_connection,
+    codes.CONNECT_TO_P2P_OPCODE: handle_p2p_connection,
+}
+
+
+#---- SERVER MAIN LOOP -----#
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     host = '127.0.0.1'
