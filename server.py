@@ -29,8 +29,6 @@ class codes:
     opcode_length = len(NAME_OPCODE)  # All opcodes are the same length
 
 
-
-
 ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 #ENCRYPTION_METHODS = {
 #    1: {
@@ -49,14 +47,6 @@ ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 #        "decrypt": aes_decrypt
 #    }
 #}
-
-#BUG:   when server's thread for handling a specific client the user stays on the userlist. This is because
-#       userlist drops are run on the same thread the server uses to handle client connection
-# Solutions:
-# 1 - Make userlist updates run on the main thread of server - then each child 
-# thread can share that userlist using locks. Then the server can look at active threads/connections
-# and decide to pop from dictionary if connection or thread has crashed
-
 
 user_list = {}
 

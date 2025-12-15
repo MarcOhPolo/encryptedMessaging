@@ -15,14 +15,17 @@ def main():
     port = 12345
 
     client_socket.connect((host, port))
+
+    
     print(greeting_msg)
     name_registration(client_socket)
 
-    client_interface_thread = threading.Thread(target=cmd, args=(client_socket,))
+    client_interface_thread = threading.Thread(target=cmd, args=(client_socket,),daemon=True)
     client_interface_thread.start()
-    while True:
-        listen_thread = threading.Thread(target=listening_thread, args=(client_socket,))
-        listen_thread.start()
+    listen_thread = threading.Thread(target=listening_thread, args=(client_socket,),daemon=True)
+    listen_thread.start()
+
+
 
 def name_registration(client_socket):
     name = codes.NAME_OPCODE + input("Enter your name: ")
@@ -38,14 +41,15 @@ def request_userlist(client_socket, args=None):
     data = EventBus.get_from_queue(codes.RESPONSE_USER_LIST_OPCODE)
     return data
 
-def request_connection(client_socket,args):
+
+def request_connection(client_socket,args=None):
     target = select_target_user(client_socket)
     client_socket.sendall(codes.CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8')+target.encode('utf-8'))
     data = EventBus.get_from_queue(codes.RESPONSE_CLIENT_ADDRESS_OPCODE)
     print(data)
 
 
-def choose_connection(client_socket, args):
+def choose_connection(client_socket, args=None):
     target = select_target_user(client_socket)
     client_socket.sendall(codes.CONNECT_TO_P2P_OPCODE.encode('utf-8')+target.encode('utf-8'))
     #WHEN THE SERVER RESPONDS WITH THE ADDRESS OF THE OTHER CLIENT
@@ -80,6 +84,7 @@ def listening_thread(client_socket):
 
 def request_counter(connection_requests=[]):
     print(f"Connection requests: {len(connection_requests)}")
+
 
 COMMANDS = {
     "userlist": display_userlist,

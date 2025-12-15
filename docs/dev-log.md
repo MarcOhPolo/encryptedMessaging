@@ -65,7 +65,7 @@ Now the EventBus has an extra step:
 Recieves event -> Decodes opcode -> Places event into corrosponding queue -> awaits a get() with an opcode -> access queue for corrosponding opcode -> decodes event -> sends payload
 
 This process might be an example of a real world term called:
-Event Multiplexing  
+Event Multiplexing (though maybe not exactly)
 
 The code is in a good place so I am going to back and review the code and clean it up, maybe write some documentation for the parts that most likely won't change.
 ---
