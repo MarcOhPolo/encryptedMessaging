@@ -45,17 +45,22 @@ class EventBus:
 
     def __decode_payload(opcode, payload):
         match opcode[codes.POSITION_OF_ENCODING_TYPE]:  # Check the second digit of the opcode
-            case "0":
+            case "0": # UTF-8 encoded payload
                 return payload.decode('utf-8')
-            case "1": # Userlist encoded with pickle
+            case "1": # Pickle encoded payload
                 list = pickle.loads(payload)
                 return {
                     "formatted": EventBus.__format_payload_list(opcode, list),
                     "values": list
                 }
+            case "2": # JSON encoded payload
+                return EventBus.__format_payload_json(json.loads(payload),opcode[codes.POSITION_OF_SUBJECT])
 
-            case "2":
-                return json.loads(payload)
+    def __format_payload_json(payload, format_spec):
+        match format_spec:
+            case "4":
+                address = payload['address']
+                return (address['ip'],address['port'])
 
     def __format_payload_list(opcode, payload):
         def numbered(values):

@@ -10,7 +10,8 @@ class codes:
     # Define opcodes
     # First digit, direction of communication, 0 = client to server (recieved), 1 = server to client (sent)
     # Second digit, type of encoder/decoder, 0 default(utf-8), 1= pickle object
-    # Third digit, subject of communication, 001 = name registration, 002 = user list, 003 = connect to server mediated, 004 = connect to p2p, 005 = client request p2p
+    # Third digit, subject of communication, 001 = name registration, 002 = user list, 003 = connect to server mediated, 004 = connect to p2p, 005 = client request p2p,
+    # 006 = consent request p2p
 
     POSITION_OF_DATA_FLOW = -3  # Position of data flow digit in opcode
     POSITION_OF_ENCODING_TYPE = -2  # Position of encoding digit in opcode
@@ -25,6 +26,7 @@ class codes:
     RESPONSE_NAME_OPCODE = OPCODE_PREFIX+"101"
     REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"002"
     RESPONSE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"124"
+    CONSENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"106"
 
     opcode_length = len(NAME_OPCODE)  # All opcodes are the same length
 
