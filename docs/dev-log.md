@@ -81,7 +81,10 @@ Cleaned up the code and have start with finishing the p2p connection, my first i
 I think for now I will focus on number 1, and as I go I should be able to figure out the best method forward.
 Another architerctural note that I realised is that the server is handling message encoding logic, but it might be more useful for the encoding logic to all be in EventBus.py. It would help changing and expanding on the encoding formats.
 
-It's starting to become a pattern in this project where I wrote something a while ago without foreseeing how something could become a problem later, every time I want to implement a feature or function, I realise that there are issues with the architecture I had in mind. 
+This project has repeatedly shown me that early design decisions often don’t anticipate future needs. Each time I implement a new feature, I uncover architectural gaps. I’m refactoring the system into a cleaner layered model: Server handles transport only, the EventBus handles encoding/decoding and event multiplexing, and the terminal handles presentation. This separation of concerns should make future features — like P2P connections or additional message types — much easier to implement and test.
+
+The new architecture I am going for:
+Server -> EventBus Message Builder -> |Data in Transit| -> EventBus Decoder -> EventBus Multiplex Event Queue -> Terminal
 
 
 ## Architecture or Concept Notes (Optional)
