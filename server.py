@@ -1,35 +1,8 @@
 import socket
 import pickle
 import threading
-import simplejson as json
-
-
-class codes:
-    OPCODE_PREFIX = "op"
-
-    # Define opcodes
-    # First digit, direction of communication, 0 = client to server (recieved), 1 = server to client (sent)
-    # Second digit, type of encoder/decoder, 0 default(utf-8), 1= pickle object
-    # Third digit, subject of communication, 001 = name registration, 002 = user list, 003 = connect to server mediated, 004 = connect to p2p, 005 = client request p2p,
-    # 006 = consent request p2p
-
-    POSITION_OF_DATA_FLOW = -3  # Position of data flow digit in opcode
-    POSITION_OF_ENCODING_TYPE = -2  # Position of encoding digit in opcode
-    POSITION_OF_SUBJECT = -1  # Position of subject digit in opcode
-
-    NAME_OPCODE = OPCODE_PREFIX+"001"
-    RESPONSE_USER_LIST_OPCODE = OPCODE_PREFIX+"112"
-    CONNECT_TO_SERVER_MEDIATED_OPCODE = OPCODE_PREFIX+"003"
-    CONNECT_TO_P2P_OPCODE = OPCODE_PREFIX+"004"
-    CLIENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"005"
-    RESPONSE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"116"
-    RESPONSE_NAME_OPCODE = OPCODE_PREFIX+"101"
-    REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"002"
-    RESPONSE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"124"
-    CONSENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"106"
-
-    opcode_length = len(NAME_OPCODE)  # All opcodes are the same length
-
+from EventBus import EventBus
+from EventBus import codes
 
 ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 #ENCRYPTION_METHODS = {
@@ -80,36 +53,36 @@ def handle_client(client_socket, client_address):
 
 
 def find_recipient(client_socket, recipient_name):
+
     recipient_address = next(
     (addr for addr, name in user_list.items() if name == recipient_name),
     None)
 
     if recipient_address is not None:
         return recipient_address
-
-    client_socket.sendall(("Recipient not found. Please try again.").encode('utf-8'))
+    message = EventBus.message_builder(codes.FILLER_OPCODE,"Recipient not found. Please try again.")
+    client_socket.sendall(message)
     return None
 
 
-def handOff_connection(client_socket, client_address, recipient_name):
+def handOff_connection(client_socket, recipient_name):
+
     recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
-    packet = json.dumps({
-            "address": {
-            "ip": recipient_address[0],
-            "port": recipient_address[1]}
-            })
-    client_socket.sendto(codes.RESPONSE_CLIENT_ADDRESS_OPCODE.encode('utf-8')+packet.encode('utf-8'),recipient_address)
+    message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, recipient_address)
+    client_socket.sendall(message)
 
 
 def prompt_encryption_selection(client_socket, opcode, target):
-    client_socket.sendall(codes.RESPONSE_ENCRYPTION_METHODS_OPCODE.encode('utf-8')+pickle.dumps(ENCRYPTION_METHODS))
+
+    message = EventBus.message_builder(codes.RESPONSE_ENCRYPTION_METHODS_OPCODE, pickle.dumps(ENCRYPTION_METHODS))
+    client_socket.sendall(message)
     data = client_socket.recv(1024)
     try:
         enc_method = ENCRYPTION_METHODS[data]
         while True:
             middle_man_messages(client_socket, target, enc_method)
     except:
-        client_socket.sendall(("No such method try again").encode('utf-8'))
+        EventBus.message_builder(codes.FILLER_OPCODE,"No such method try again")
     def middle_man_messages(client_socket, target, enc_method):
         message = client_socket.recv(1024)
         target_address = find_recipient(client_socket, target)
@@ -141,35 +114,31 @@ def handle_requests(client_socket, client_address, data):
 def handle_name(client_socket, client_address, content):
     print(f"Received name: {content}")
     user_list[client_address] = content
-    response = f"Server received your name: {content}"
-    client_socket.sendall(response.encode("utf-8"))
+    response = EventBus.message_builder(codes.FILLER_OPCODE,f"Server received your name: {content}")
+    client_socket.sendall(response)
 
 
 def handle_user_list_request(client_socket, client_address, _):
+
     username = user_list.get(client_address, "UNKNOWN")
     print(f"Server received request from: {username}. Sending list...")
-    payload = (
-        codes.RESPONSE_USER_LIST_OPCODE.encode("utf-8") +
-        pickle.dumps(user_list)
-    )
+
+    payload = EventBus.message_builder(codes.RESPONSE_USER_LIST_OPCODE, user_list)
     client_socket.sendall(payload)
 
 
 def handle_mediated_connection(client_socket, client_address, content):
-    print(
-        f"Server received connection request from: "
-        f"{user_list.get(client_address, 'UNKNOWN')}. "
-        "Prompting for encryption method..."
-    )
+
     prompt_encryption_selection(client_socket, codes.CONNECT_TO_SERVER_MEDIATED_OPCODE, content)
 
 
 def handle_p2p_connection(client_socket, client_address, content):
+
     print(
         f"Server received p2p connection request from: "
         f"{user_list.get(client_address, 'UNKNOWN')}. Initiating handoff..."
     )
-    handOff_connection(client_socket, client_address, content)
+    handOff_connection(client_socket, content)
 
 
 OPCODE_HANDLERS = {
@@ -182,6 +151,7 @@ OPCODE_HANDLERS = {
 
 #---- SERVER MAIN LOOP -----#
 def main():
+    
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     host = '127.0.0.1'
     port = 12345

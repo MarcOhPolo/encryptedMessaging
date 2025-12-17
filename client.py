@@ -1,7 +1,7 @@
 import socket
 import threading
 from EventBus import EventBus
-from server import codes
+from EventBus import codes
 
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
@@ -14,7 +14,6 @@ def main():
 
     client_socket.connect((host, port))
 
-    
     print(greeting_msg)
     name_registration(client_socket)
 
@@ -85,17 +84,20 @@ def request_counter(connection_requests=[]):
 
 def p2p_connection_handler(client_socket, address):
     print(f"Establishing P2P connection to {address}...")
-    p2p_connection_establish(address)
+    # p2p_connection_establish(address)
     print(f"P2P connection to {address} established.")
+
 
 def p2p_connection_establish(address):
     p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     p2p_socket.connect(address)
     print("P2P connection established.")
 
+
 def p2p_consent_request_handler(client_socket, address):
     print(f"Requesting consent for P2P connection from {address}...")
     client_socket.sendall(codes.CONSENT_REQUEST_P2P_OPCODE.encode('utf-8'))
+
 
 def p2p_connection_consent_handler(client_socket, address):
     print(f"Received P2P connection request from {address}.")
@@ -107,6 +109,7 @@ COMMANDS = {
     "server-mediated": request_connection,
     "requests": request_counter,
 }
+
 
 def cmd(client_socket):
     print("Command terminal ready. Type 'help' or 'quit'.")
@@ -127,6 +130,7 @@ def cmd(client_socket):
             COMMANDS[name](client_socket, args)
         else:
             print(f"Unknown command: {name}")
+
 
 if __name__ == "__main__":
     main()

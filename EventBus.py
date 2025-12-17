@@ -1,7 +1,33 @@
 from queue import Queue
-from server import codes
 import pickle
 import json
+
+class codes:
+    OPCODE_PREFIX = "op"
+
+    # Define opcodes
+    # First digit, direction of communication, 0 = client to server (recieved), 1 = server to client (sent)
+    # Second digit, type of encoder/decoder, 0 default(utf-8), 1= pickle object, 2 = json
+    # Third digit, subject of communication, 000=filler content, 001 = name registration, 002 = user list, 003 = connect to server mediated, 004 = connect to p2p, 005 = client request p2p,
+    # 006 = consent request p2p
+
+    POSITION_OF_DATA_FLOW = -3  # Position of data flow digit in opcode
+    POSITION_OF_ENCODING_TYPE = -2  # Position of encoding digit in opcode
+    POSITION_OF_SUBJECT = -1  # Position of subject digit in opcode
+
+    FILLER_OPCODE = OPCODE_PREFIX+"000"
+    NAME_OPCODE = OPCODE_PREFIX+"001"
+    RESPONSE_USER_LIST_OPCODE = OPCODE_PREFIX+"112"
+    CONNECT_TO_SERVER_MEDIATED_OPCODE = OPCODE_PREFIX+"003"
+    CONNECT_TO_P2P_OPCODE = OPCODE_PREFIX+"004"
+    CLIENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"005"
+    RESPONSE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"116"
+    RESPONSE_NAME_OPCODE = OPCODE_PREFIX+"101"
+    REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"002"
+    RESPONSE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"124"
+    CONSENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"106"
+
+    opcode_length = len(FILLER_OPCODE)  # All opcodes are the same length
 
 class EventBus:
 
@@ -21,6 +47,45 @@ class EventBus:
     def put(event):
         opcode = EventBus.__extract_opcode(event).decode('utf-8')
         EventBus._queues[opcode].put(event)
+
+    @staticmethod
+    def message_builder(opcode, payload):
+        encoding_type = opcode[codes.POSITION_OF_ENCODING_TYPE]
+
+        match encoding_type:
+            case "0":
+                encoded_payload = payload.encode('utf-8')
+            case "1":
+                encoded_payload = pickle.dumps(payload)
+            case "2":
+                encoded_payload = EventBus.encoded_format_json(payload, opcode[codes.POSITION_OF_SUBJECT])
+            case _:
+                raise ValueError(f"Unknown encoding type: {encoding_type}")
+
+        return opcode.encode('utf-8') + encoded_payload
+
+    @staticmethod
+    def encoded_format_json(payload, format_spec):
+
+        match format_spec:
+            case "4":
+                packet = json.dumps({
+                    "address": {
+                        "ip": payload[0],
+                        "port": payload[1]
+                    }
+                })
+                return packet.encode('utf-8')
+            
+            case _:
+                raise ValueError("Unsupported format specifier for JSON encoding")
+    
+    def encoded_format_list(payload, format_spec):
+        match format_spec:
+            case "2": 
+                return pickle.dumps(payload)
+            case "6":
+                return pickle.dumps(payload)
 
     @staticmethod
     def get(block=False,timeout=None):
