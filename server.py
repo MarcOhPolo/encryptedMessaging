@@ -53,6 +53,7 @@ def handle_client(client_socket, client_address):
 
 
 def find_recipient(client_socket, recipient_name):
+
     recipient_address = next(
     (addr for addr, name in user_list.items() if name == recipient_name),
     None)
@@ -72,6 +73,7 @@ def handOff_connection(client_socket, recipient_name):
 
 
 def prompt_encryption_selection(client_socket, opcode, target):
+
     message = EventBus.message_builder(codes.RESPONSE_ENCRYPTION_METHODS_OPCODE, pickle.dumps(ENCRYPTION_METHODS))
     client_socket.sendall(message)
     data = client_socket.recv(1024)
@@ -80,7 +82,7 @@ def prompt_encryption_selection(client_socket, opcode, target):
         while True:
             middle_man_messages(client_socket, target, enc_method)
     except:
-        client_socket.sendall(("No such method try again").encode('utf-8'))
+        EventBus.message_builder(codes.FILLER_OPCODE,"No such method try again")
     def middle_man_messages(client_socket, target, enc_method):
         message = client_socket.recv(1024)
         target_address = find_recipient(client_socket, target)
@@ -117,6 +119,7 @@ def handle_name(client_socket, client_address, content):
 
 
 def handle_user_list_request(client_socket, client_address, _):
+
     username = user_list.get(client_address, "UNKNOWN")
     print(f"Server received request from: {username}. Sending list...")
 
@@ -125,10 +128,12 @@ def handle_user_list_request(client_socket, client_address, _):
 
 
 def handle_mediated_connection(client_socket, client_address, content):
+
     prompt_encryption_selection(client_socket, codes.CONNECT_TO_SERVER_MEDIATED_OPCODE, content)
 
 
 def handle_p2p_connection(client_socket, client_address, content):
+
     print(
         f"Server received p2p connection request from: "
         f"{user_list.get(client_address, 'UNKNOWN')}. Initiating handoff..."
@@ -146,6 +151,7 @@ OPCODE_HANDLERS = {
 
 #---- SERVER MAIN LOOP -----#
 def main():
+    
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     host = '127.0.0.1'
     port = 12345
