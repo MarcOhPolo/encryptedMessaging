@@ -25,8 +25,9 @@ def main():
 
 
 def name_registration(client_socket):
-    name = codes.NAME_OPCODE + input("Enter your name: ")
-    client_socket.sendall(name.encode('utf-8'))
+    name = input("Enter your name: ")
+    name_submission = EventBus.message_builder(codes.NAME_OPCODE,name)
+    client_socket.sendall(name_submission)
     data = EventBus.get_from_queue(codes.RESPONSE_NAME_OPCODE)
     print(f"{data}")
 
@@ -47,11 +48,7 @@ def request_connection(client_socket,args=None):
 
 def choose_connection(client_socket, args=None):
     target = select_target_user(client_socket)
-    client_socket.sendall(codes.CONNECT_TO_P2P_OPCODE.encode('utf-8')+target.encode('utf-8'))
-    # WHEN THE SERVER RESPONDS WITH THE ADDRESS OF THE OTHER CLIENT
-    # LAUNCH P2P CONNECTION HERE ON A NEW THREAD
-    # Returns JSON with all information neeeded to make a socket connection
-    p2p_connection_handler(client_socket, EventBus.get_from_queue(codes.RESPONSE_CLIENT_ADDRESS_OPCODE))
+    return target
 
 
 def select_target_user(client_socket):
@@ -86,11 +83,13 @@ def request_counter(client_socket, args=None):
         for _ in range(request_count):
             name = EventBus.get_from_queue(codes.CONSENT_REQUEST_P2P_OPCODE)
             print(f"Connection request from: {name}")
-            print(f"To accept, use the 'p2p' command with the name.")
+        print(f"To respond, use the 'p2p' command with the name.")
 
-def p2p_connection_handler(client_socket, address):
-    print(f"Establishing P2P connection to {address}...")
-    print(f"P2P connection to {address} established.")
+
+def p2p_connection_handler(client_socket, args=None):
+    target = choose_connection(client_socket)
+    request = EventBus.message_builder(codes.CLIENT_REQUEST_P2P_OPCODE, target)
+    client_socket.sendall(request)
 
 
 def p2p_connection_establish(address):
@@ -98,10 +97,14 @@ def p2p_connection_establish(address):
     p2p_socket.connect(address)
     print("P2P connection established.")
 
+def p2p_consent(client_socket, args=None):
+    # Consent will have to be sent as a JSON object
+    message = EventBus.message_builder(codes.CONSENT_TO_P2P,args)
+    client_socket(message)
 
 COMMANDS = {
     "userlist": display_userlist,
-    "p2p": choose_connection,
+    "p2p": p2p_connection_handler,
     "server-mediated": request_connection,
     "requests": request_counter,
 }

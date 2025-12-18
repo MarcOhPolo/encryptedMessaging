@@ -23,9 +23,22 @@ ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 #    }
 #}
 
+#---- SERVER STATE DICTIONARIES -----#
+
+# These dictionaries collectively represent the server’s authoritative runtime state.
+# They store client identity, active connections, and transient P2P handshake state, and are
+# updated only in response to network events (never polled or waited on).
+
+# client_address -> username
 user_list = {}
 
+# client_address -> socket
 clients = {}
+
+# request_id -> {from, to}
+# Tracks pending P2P connection requests; entries are resolved via incoming responses and removed.
+pending_p2p_requests = {}
+
 
 #---- CLIENT HANDLERS -----#
 def handle_client(client_socket, client_address):
@@ -74,18 +87,43 @@ def find_recipient_name(recipient_address):
         return recipient_name
     return None
 
-def handOff_connection(client_socket, recipient_name):
+def find_recipient_socket(recipient_name=None, recipient_address=None):
+    if recipient_address:
+        return clients[recipient_address]
+    if recipient_name:
+        recipient_address = find_recipient_address(recipient_name)
+        return clients[recipient_address]
+
+
+#---- P2P Functions ----#
+def create_P2P_request(client_socket, recipient_name):
 
     recipient_address = find_recipient_address(recipient_name=recipient_name) 
-    consent_p2p_connection(client_socket, recipient_name)
+    consent_request_p2p_connection(client_socket, recipient_name)
     message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, recipient_address)
     client_socket.sendall(message)
 
-def consent_p2p_connection(client_socket, target):
+
+def consent_request_p2p_connection(client_socket, target):
     target_address = find_recipient_address(target)
     message = EventBus.message_builder(codes.CONSENT_REQUEST_P2P_OPCODE, find_recipient_name(client_socket.getpeername()))
     clients[target_address].sendall(message)
     print(f"Sent consent request to {target} at {target_address}.")
+
+
+def consent_recieved_p2p_connection(client_socket, target_name, response):
+    response = response.decode('utf-8')
+    match response.lower():
+        case "y":
+            target_socket = find_recipient_socket(recipient_name=target_name)
+            client_a_message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, client_socket.getpeername())
+            client_b_message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, find_recipient_address(target_name))
+            client_socket.sendall(client_b_message)
+            target_socket.sendall(client_a_message)
+        case "n":
+            print("P2P request rejected")
+        case _:
+            print("Invalid response recieved")
 
 
 def prompt_encryption_selection(client_socket, opcode, target):
@@ -107,16 +145,7 @@ def prompt_encryption_selection(client_socket, opcode, target):
 
 #---- OPCODE HANDLERS -----#
 def handle_requests(client_socket, client_address, data):
-
-    request = data.decode("utf-8")
-
-    if len(request) < codes.opcode_length:
-        print("Invalid request: missing opcode")
-        return
-
-    opcode = request[:codes.opcode_length]
-    request_content = request[codes.opcode_length:]
-
+    opcode,request_content = EventBus.parse_event(data, return_opcode=True)
 
     handler = OPCODE_HANDLERS.get(opcode)
 
@@ -154,14 +183,16 @@ def handle_p2p_connection(client_socket, client_address, content):
         f"Server received p2p connection request from: "
         f"{user_list.get(client_address, 'UNKNOWN')}. Initiating handoff..."
     )
-    handOff_connection(client_socket, content)
+    create_P2P_request(client_socket, content)
 
 
 OPCODE_HANDLERS = {
+    #All opcodes' first digit should be 0 as this reflects the client -> server data flow
     codes.NAME_OPCODE: handle_name,
     codes.REQUEST_USER_LIST_OPCODE: handle_user_list_request,
     codes.CONNECT_TO_SERVER_MEDIATED_OPCODE: handle_mediated_connection,
-    codes.CONNECT_TO_P2P_OPCODE: handle_p2p_connection,
+    codes.CLIENT_REQUEST_P2P_OPCODE: handle_p2p_connection,
+    codes.CONSENT_REQUEST_P2P_OPCODE: consent_recieved_p2p_connection,
 }
 
 
