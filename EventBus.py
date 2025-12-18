@@ -21,11 +21,15 @@ class codes:
     CONNECT_TO_SERVER_MEDIATED_OPCODE = OPCODE_PREFIX+"003"
     CONNECT_TO_P2P_OPCODE = OPCODE_PREFIX+"004"
     CLIENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"005"
-    RESPONSE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"116"
+    RESPONSE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"117"
     RESPONSE_NAME_OPCODE = OPCODE_PREFIX+"101"
     REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"002"
     RESPONSE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"124"
     CONSENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"106"
+
+    ENCODING_TYPE_ADDRESS_JSON = {"4"}  # JSON encoded address format
+
+
 
     opcode_length = len(FILLER_OPCODE)  # All opcodes are the same length
 
@@ -68,8 +72,8 @@ class EventBus:
     def encoded_format_json(payload, format_spec):
 
         match format_spec:
-            case "4":
-                packet = json.dumps({
+            case correct_type if correct_type in codes.ENCODING_TYPE_ADDRESS_JSON:
+                packet = json.dumps({ 
                     "address": {
                         "ip": payload[0],
                         "port": payload[1]
@@ -84,13 +88,14 @@ class EventBus:
         match format_spec:
             case "2": 
                 return pickle.dumps(payload)
-            case "6":
-                return pickle.dumps(payload)
 
     @staticmethod
     def get(block=False,timeout=None):
-        event = EventBus._queue.get(block=block,timeout=timeout)
-        return EventBus.__parse_event(event)
+        try:
+            event = EventBus._queue.get(block=block,timeout=timeout)   
+            return EventBus.__parse_event(event)
+        except Exception as e:
+            raise e
     
     @staticmethod
     def __extract_opcode(event):
@@ -123,7 +128,7 @@ class EventBus:
 
     def __format_payload_json(payload, format_spec):
         match format_spec:
-            case "4":
+            case correct_type if correct_type in codes.ENCODING_TYPE_ADDRESS_JSON:
                 address = payload['address']
                 return (address['ip'],address['port'])
 

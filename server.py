@@ -25,6 +25,8 @@ ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 
 user_list = {}
 
+clients = {}
+
 #---- CLIENT HANDLERS -----#
 def handle_client(client_socket, client_address):
     with client_socket:
@@ -50,6 +52,8 @@ def handle_client(client_socket, client_address):
 
     if client_address in user_list:
         user_list.pop(client_address, None)
+    if client_address in clients:
+        clients.pop(client_address, None)
 
 
 def find_recipient(client_socket, recipient_name):
@@ -68,8 +72,15 @@ def find_recipient(client_socket, recipient_name):
 def handOff_connection(client_socket, recipient_name):
 
     recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
+    consent_p2p_connection(client_socket, recipient_name)
     message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, recipient_address)
     client_socket.sendall(message)
+
+def consent_p2p_connection(client_socket, target):
+    target_address = find_recipient(client_socket, target)
+    message = EventBus.message_builder(codes.CONSENT_REQUEST_P2P_OPCODE, clients[client_socket.getpeername()])
+    clients[target_address].sendall(message)
+    print(f"Sent consent request to {target} at {target_address}.")
 
 
 def prompt_encryption_selection(client_socket, opcode, target):
@@ -114,7 +125,7 @@ def handle_requests(client_socket, client_address, data):
 def handle_name(client_socket, client_address, content):
     print(f"Received name: {content}")
     user_list[client_address] = content
-    response = EventBus.message_builder(codes.FILLER_OPCODE,f"Server received your name: {content}")
+    response = EventBus.message_builder(codes.RESPONSE_NAME_OPCODE,f"Server received your name: {content}")
     client_socket.sendall(response)
 
 
@@ -158,9 +169,9 @@ def main():
     server_socket.bind((host, port))
     server_socket.listen(5)
     print(f"Server listening on {host}:{port}")
-
     while True:
         client_socket, client_address = server_socket.accept()
+        clients[client_address] = client_socket
         print(f"Accepted connection from {client_address}")
         client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address,))
         client_handler.start()

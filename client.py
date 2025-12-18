@@ -14,19 +14,21 @@ def main():
 
     client_socket.connect((host, port))
 
+    listen_thread = threading.Thread(target=listening_thread, args=(client_socket,),daemon=True)
+    listen_thread.start()
+
     print(greeting_msg)
     name_registration(client_socket)
 
     client_interface_thread = threading.Thread(target=cmd, args=(client_socket,))
     client_interface_thread.start()
-    listen_thread = threading.Thread(target=listening_thread, args=(client_socket,),daemon=True)
-    listen_thread.start()
 
 
 def name_registration(client_socket):
     name = codes.NAME_OPCODE + input("Enter your name: ")
     client_socket.sendall(name.encode('utf-8'))
-    data = client_socket.recv(1024).decode('utf-8')
+    # data = client_socket.recv(1024).decode('utf-8')
+    data = EventBus.get_from_queue(codes.RESPONSE_NAME_OPCODE)
     print(f"{data}")
 
 
@@ -78,13 +80,17 @@ def listening_thread(client_socket):
             EventBus.publish(data)
 
 
-def request_counter(connection_requests=[]):
-    print(f"Connection requests: {len(connection_requests)}")
+def request_counter(client_socket, args=None):
+    request_count = EventBus._queues[codes.CONSENT_REQUEST_P2P_OPCODE].qsize()
+    print(f"Connection requests: {request_count}")
+    if request_count > 0:
+        for _ in range(request_count):
+            event = EventBus.get_from_queue(codes.CONSENT_REQUEST_P2P_OPCODE)
+            print(f"Connection request from address: {event[0], event[1]}")
 
 
 def p2p_connection_handler(client_socket, address):
     print(f"Establishing P2P connection to {address}...")
-    # p2p_connection_establish(address)
     print(f"P2P connection to {address} established.")
 
 
@@ -92,15 +98,6 @@ def p2p_connection_establish(address):
     p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     p2p_socket.connect(address)
     print("P2P connection established.")
-
-
-def p2p_consent_request_handler(client_socket, address):
-    print(f"Requesting consent for P2P connection from {address}...")
-    client_socket.sendall(codes.CONSENT_REQUEST_P2P_OPCODE.encode('utf-8'))
-
-
-def p2p_connection_consent_handler(client_socket, address):
-    print(f"Received P2P connection request from {address}.")
 
 
 COMMANDS = {
