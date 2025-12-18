@@ -98,7 +98,7 @@ def p2p_connection_establish(address):
     print("P2P connection established.")
 
 def p2p_consent(client_socket, args=None):
-    # Consent will have to be sent as a JSON object
+    # TODO: Consent will have to be sent as a JSON object
     message = EventBus.message_builder(codes.CONSENT_TO_P2P,args)
     client_socket(message)
 

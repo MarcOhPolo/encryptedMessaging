@@ -31,8 +31,6 @@ class codes:
 
     ENCODING_TYPE_ADDRESS_JSON = {RESPONSE_CLIENT_ADDRESS_OPCODE[POSITION_OF_SUBJECT]}  # JSON encoded ip,port format
 
-
-
     opcode_length = len(FILLER_OPCODE)  # All opcodes are the same length
 
 class EventBus:
