@@ -27,7 +27,6 @@ def main():
 def name_registration(client_socket):
     name = codes.NAME_OPCODE + input("Enter your name: ")
     client_socket.sendall(name.encode('utf-8'))
-    # data = client_socket.recv(1024).decode('utf-8')
     data = EventBus.get_from_queue(codes.RESPONSE_NAME_OPCODE)
     print(f"{data}")
 
@@ -85,9 +84,9 @@ def request_counter(client_socket, args=None):
     print(f"Connection requests: {request_count}")
     if request_count > 0:
         for _ in range(request_count):
-            event = EventBus.get_from_queue(codes.CONSENT_REQUEST_P2P_OPCODE)
-            print(f"Connection request from address: {event[0], event[1]}")
-
+            name = EventBus.get_from_queue(codes.CONSENT_REQUEST_P2P_OPCODE)
+            print(f"Connection request from: {name}")
+            print(f"To accept, use the 'p2p' command with the name.")
 
 def p2p_connection_handler(client_socket, address):
     print(f"Establishing P2P connection to {address}...")

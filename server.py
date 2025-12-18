@@ -56,7 +56,7 @@ def handle_client(client_socket, client_address):
         clients.pop(client_address, None)
 
 
-def find_recipient(client_socket, recipient_name):
+def find_recipient_address(recipient_name):
 
     recipient_address = next(
     (addr for addr, name in user_list.items() if name == recipient_name),
@@ -64,21 +64,26 @@ def find_recipient(client_socket, recipient_name):
 
     if recipient_address is not None:
         return recipient_address
-    message = EventBus.message_builder(codes.FILLER_OPCODE,"Recipient not found. Please try again.")
-    client_socket.sendall(message)
     return None
 
+def find_recipient_name(recipient_address):
+
+    recipient_name = user_list.get(recipient_address, None)
+
+    if recipient_name is not None:
+        return recipient_name
+    return None
 
 def handOff_connection(client_socket, recipient_name):
 
-    recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
+    recipient_address = find_recipient_address(recipient_name=recipient_name) 
     consent_p2p_connection(client_socket, recipient_name)
     message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, recipient_address)
     client_socket.sendall(message)
 
 def consent_p2p_connection(client_socket, target):
-    target_address = find_recipient(client_socket, target)
-    message = EventBus.message_builder(codes.CONSENT_REQUEST_P2P_OPCODE, clients[client_socket.getpeername()])
+    target_address = find_recipient_address(target)
+    message = EventBus.message_builder(codes.CONSENT_REQUEST_P2P_OPCODE, find_recipient_name(client_socket.getpeername()))
     clients[target_address].sendall(message)
     print(f"Sent consent request to {target} at {target_address}.")
 
@@ -96,7 +101,7 @@ def prompt_encryption_selection(client_socket, opcode, target):
         EventBus.message_builder(codes.FILLER_OPCODE,"No such method try again")
     def middle_man_messages(client_socket, target, enc_method):
         message = client_socket.recv(1024)
-        target_address = find_recipient(client_socket, target)
+        target_address = find_recipient_address(target)
         pass  # Placeholder for message handling logic
 
 
