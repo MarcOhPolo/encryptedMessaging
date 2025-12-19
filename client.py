@@ -52,14 +52,17 @@ def choose_connection(client_socket, args=None):
 
 
 def select_target_user(client_socket):
-    userlist = display_userlist(client_socket)
+    display_userlist(client_socket)
     while True:
-        target = input("Select a user to connect to directly (enter name): ")
-        if target in userlist["values"].values():
+        target = input("Select a user to connect to (enter name): ")
+        if search_userlist(client_socket, target):
             print(f"Selected user: {target}")
             break
     return target
 
+def search_userlist(client_socket, target):
+    userlist = request_userlist(client_socket)
+    return target in userlist["values"].values()
 
 def display_userlist(client_socket, args=None):
     event_payload = request_userlist(client_socket)
@@ -83,14 +86,21 @@ def request_counter(client_socket, args=None):
         for _ in range(request_count):
             name = EventBus.get_from_queue(codes.CONSENT_REQUEST_P2P_OPCODE)
             print(f"Connection request from: {name}")
-        print(f"To respond, use the 'p2p' command with the name.")
+        print(f"To respond, use the 'p2p' command with the name, then accept or deny.")
 
 
 def p2p_connection_handler(client_socket, args=None):
-    target = choose_connection(client_socket)
-    request = EventBus.message_builder(codes.CLIENT_REQUEST_P2P_OPCODE, target)
-    client_socket.sendall(request)
-
+    if (len(args)==0):
+        target = choose_connection(client_socket)
+        request = EventBus.message_builder(codes.CLIENT_REQUEST_P2P_OPCODE, target)
+        client_socket.sendall(request)
+    elif (len(args)==2):
+        p2p_consent(client_socket,args)
+    elif (len(args)==1) and (search_userlist(client_socket, args[0])):
+        request = EventBus.message_builder(codes.CLIENT_REQUEST_P2P_OPCODE, args[0])
+        client_socket.sendall(request)
+    else:
+        print("Check P2P arguements, try again")
 
 def p2p_connection_establish(address):
     p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -98,9 +108,14 @@ def p2p_connection_establish(address):
     print("P2P connection established.")
 
 def p2p_consent(client_socket, args=None):
-    # TODO: Consent will have to be sent as a JSON object
-    message = EventBus.message_builder(codes.CONSENT_TO_P2P,args)
-    client_socket(message)
+    
+    if search_userlist(client_socket, args[0]):
+        message = EventBus.message_builder(codes.CONSENT_TO_P2P,args)
+        client_socket.sendall(message)
+    else:
+        print(f"{args[0]} is not a valid user, please input a connected user (see userlist)")
+
+    # TODO: Consent will have to be sent as a JSON object, include a target, and a name
 
 COMMANDS = {
     "userlist": display_userlist,

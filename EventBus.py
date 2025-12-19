@@ -70,7 +70,6 @@ class EventBus:
 
     @staticmethod
     def encoded_format_json(payload, format_spec):
-
         match format_spec:
             case correct_type if correct_type in codes.ENCODING_TYPE_ADDRESS_JSON:
                 packet = json.dumps({ 
@@ -80,7 +79,14 @@ class EventBus:
                     }
                 })
                 return packet.encode('utf-8')
-            
+            case "7":
+                packet = json.dumps({
+                    "consent_form": {
+                        "target_name": payload[0],
+                        "response": payload[1]
+                    }
+                })
+                return packet
             case _:
                 raise ValueError("Unsupported format specifier for JSON encoding")
     
@@ -126,11 +132,13 @@ class EventBus:
             case "2": # JSON encoded payload
                 return EventBus.format_payload_json(json.loads(payload),opcode[codes.POSITION_OF_SUBJECT])
 
+
     def format_payload_json(payload, format_spec):
         match format_spec:
             case correct_type if correct_type in codes.ENCODING_TYPE_ADDRESS_JSON:
                 address = payload['address']
                 return (address['ip'],address['port'])
+
 
     def format_payload_list(opcode, payload):
         def numbered(values):
