@@ -1,7 +1,7 @@
 import socket
 import threading
 from EventBus import EventBus
-from EventBus import codes
+from codes import *
 
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
@@ -26,23 +26,23 @@ def main():
 
 def name_registration(client_socket):
     name = input("Enter your name: ")
-    name_submission = EventBus.message_builder(codes.NAME_OPCODE,name)
+    name_submission = EventBus.message_builder(NAME_OPCODE,name)
     client_socket.sendall(name_submission)
-    data = EventBus.get_from_queue(codes.RESPONSE_NAME_OPCODE)
+    data = EventBus.get_from_queue(RESPONSE_NAME_OPCODE)
     print(f"{data}")
 
 
 def request_userlist(client_socket, args=None):
     # Request user list from server
     # Now uses the EventBus to get the response from the listening thread instead of blocking recv
-    client_socket.sendall(codes.REQUEST_USER_LIST_OPCODE.encode('utf-8'))
-    return EventBus.get_from_queue(codes.RESPONSE_USER_LIST_OPCODE)
+    client_socket.sendall(REQUEST_USER_LIST_OPCODE.encode('utf-8'))
+    return EventBus.get_from_queue(RESPONSE_USER_LIST_OPCODE)
 
 
 def request_connection(client_socket,args=None):
     target = select_target_user(client_socket)
-    client_socket.sendall(codes.CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8')+target.encode('utf-8'))
-    data = EventBus.get_from_queue(codes.RESPONSE_CLIENT_ADDRESS_OPCODE)
+    client_socket.sendall(CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8')+target.encode('utf-8'))
+    data = EventBus.get_from_queue(RESPONSE_CLIENT_ADDRESS_OPCODE)
     print(data)
 
 
@@ -80,11 +80,11 @@ def listening_thread(client_socket):
 
 
 def request_counter(client_socket, args=None):
-    request_count = EventBus._queues[codes.CONSENT_REQUEST_P2P_OPCODE].qsize()
+    request_count = EventBus._queues[CONSENT_REQUEST_P2P_OPCODE].qsize()
     print(f"Connection requests: {request_count}")
     if request_count > 0:
         for _ in range(request_count):
-            name = EventBus.get_from_queue(codes.CONSENT_REQUEST_P2P_OPCODE)
+            name = EventBus.get_from_queue(CONSENT_REQUEST_P2P_OPCODE)
             print(f"Connection request from: {name}")
         print(f"To respond, use the 'p2p' command with the name, then accept or deny.")
 
@@ -92,12 +92,12 @@ def request_counter(client_socket, args=None):
 def p2p_connection_handler(client_socket, args=None):
     if (len(args)==0):
         target = choose_connection(client_socket)
-        request = EventBus.message_builder(codes.CLIENT_REQUEST_P2P_OPCODE, target)
+        request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, target)
         client_socket.sendall(request)
     elif (len(args)==2):
         p2p_consent(client_socket,args)
     elif (len(args)==1) and (search_userlist(client_socket, args[0])):
-        request = EventBus.message_builder(codes.CLIENT_REQUEST_P2P_OPCODE, args[0])
+        request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, args[0])
         client_socket.sendall(request)
     else:
         print("Check P2P arguements, try again")
@@ -110,7 +110,7 @@ def p2p_connection_establish(address):
 def p2p_consent(client_socket, args=None):
     
     if search_userlist(client_socket, args[0]):
-        message = EventBus.message_builder(codes.CONSENT_TO_P2P,args)
+        message = EventBus.message_builder(CONSENT_TO_P2P,args)
         client_socket.sendall(message)
     else:
         print(f"{args[0]} is not a valid user, please input a connected user (see userlist)")
