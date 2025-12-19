@@ -54,6 +54,7 @@ Basically Bad/Incomplete vision for UI -> Concurrency issues.
 
 Note from later: I have added the terminal command system and it is much better with the multi queue bus structure it works like magic! Now when the user goes down a controlled path of steps that block the UI I can search in specific queues for different types of communications, rather than hoping that the user doesn't get a connection request from someone whilst they select someone to connect to, now the user can look for the username want to connect to, and the request isn't forced into the feed, instead the user can make a command to check.
 A useful QOL feature for the user is some sort of notifcation/indication of when a request is recieved.
+
 ---
 
 ### 2025-12-10
@@ -69,6 +70,22 @@ Event Multiplexing (though maybe not exactly)
 
 The code is in a good place so I am going to back and review the code and clean it up, maybe write some documentation for the parts that most likely won't change.
 ---
+
+### 2025-12-16
+
+Cleaned up the code and have start with finishing the p2p connection, my first issue is that the client can get the address and port information from the server however the port that it sends is the port that the server is using, which means the socket connection is refused. I'm not sure which way I want to go since I still have to implement
+
+1. a mechansim that allows the recipient of the request to accept or deny the connection
+2. a mechanism that opens a new port, or disconnects from the server and listens for a new connection from the other client for p2p connection
+
+I think for now I will focus on number 1, and as I go I should be able to figure out the best method forward.
+Another architerctural note that I realised is that the server is handling message encoding logic, but it might be more useful for the encoding logic to all be in EventBus.py. It would help changing and expanding on the encoding formats.
+
+This project has repeatedly shown me that early design decisions often don’t anticipate future needs. Each time I implement a new feature, I uncover architectural gaps. I’m refactoring the system into a cleaner layered model: Server handles transport only, the EventBus handles encoding/decoding and event multiplexing, and the terminal handles presentation. This separation of concerns should make future features — like P2P connections or additional message types — much easier to implement and test.
+
+The new architecture I am going for:
+Server -> EventBus Message Builder -> |Data in Transit| -> EventBus Decoder -> EventBus Multiplex Event Queue -> Terminal
+
 
 ## Architecture or Concept Notes (Optional)
 Use this section to jot down any important design thoughts that don’t fit neatly into a daily entry:

@@ -1,33 +1,8 @@
 import socket
 import pickle
 import threading
-import simplejson as json
-
-
-class codes:
-    OPCODE_PREFIX = "op"
-
-    # Define opcodes
-    # First digit, direction of communication, 0 = client to server (recieved), 1 = server to client (sent)
-    # Second digit, type of encoder/decoder, 0 default(utf-8), 1= pickle object
-    # Third digit, subject of communication, 001 = name registration, 002 = user list, 003 = connect to server mediated, 004 = connect to p2p, 005 = client request p2p
-
-    POSITION_OF_DATA_FLOW = -3  # Position of data flow digit in opcode
-    POSITION_OF_ENCODING_TYPE = -2  # Position of encoding digit in opcode
-    POSITION_OF_SUBJECT = -1  # Position of subject digit in opcode
-
-    NAME_OPCODE = OPCODE_PREFIX+"001"
-    RESPONSE_USER_LIST_OPCODE = OPCODE_PREFIX+"112"
-    CONNECT_TO_SERVER_MEDIATED_OPCODE = OPCODE_PREFIX+"003"
-    CONNECT_TO_P2P_OPCODE = OPCODE_PREFIX+"004"
-    CLIENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"005"
-    RESPONSE_ENCRYPTION_METHODS_OPCODE = OPCODE_PREFIX+"116"
-    RESPONSE_NAME_OPCODE = OPCODE_PREFIX+"101"
-    REQUEST_USER_LIST_OPCODE = OPCODE_PREFIX+"002"
-    RESPONSE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"124"
-
-    opcode_length = len(NAME_OPCODE)  # All opcodes are the same length
-
+from EventBus import EventBus
+from EventBus import codes
 
 ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 #ENCRYPTION_METHODS = {
@@ -48,7 +23,22 @@ ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 #    }
 #}
 
+#---- SERVER STATE DICTIONARIES -----#
+
+# These dictionaries collectively represent the server’s authoritative runtime state.
+# They store client identity, active connections, and transient P2P handshake state, and are
+# updated only in response to network events (never polled or waited on).
+
+# client_address -> username
 user_list = {}
+
+# client_address -> socket
+clients = {}
+
+# request_id -> {from, to}
+# Tracks pending P2P connection requests; entries are resolved via incoming responses and removed.
+pending_p2p_requests = {}
+
 
 #---- CLIENT HANDLERS -----#
 def handle_client(client_socket, client_address):
@@ -75,57 +65,88 @@ def handle_client(client_socket, client_address):
 
     if client_address in user_list:
         user_list.pop(client_address, None)
+    if client_address in clients:
+        clients.pop(client_address, None)
 
 
-def find_recipient(client_socket, recipient_name):
+def find_recipient_address(recipient_name):
+
     recipient_address = next(
     (addr for addr, name in user_list.items() if name == recipient_name),
     None)
 
     if recipient_address is not None:
         return recipient_address
-
-    client_socket.sendall(("Recipient not found. Please try again.").encode('utf-8'))
     return None
 
+def find_recipient_name(recipient_address):
 
-def handOff_connection(client_socket, client_address, recipient_name):
-    recipient_address = find_recipient(client_socket, recipient_name=recipient_name) 
-    packet = json.dumps({
-            "address": {
-            "ip": recipient_address[0],
-            "port": recipient_address[1]}
-            })
-    client_socket.sendto(codes.RESPONSE_CLIENT_ADDRESS_OPCODE.encode('utf-8')+packet.encode('utf-8'),recipient_address)
+    recipient_name = user_list.get(recipient_address, None)
+
+    if recipient_name is not None:
+        return recipient_name
+    return None
+
+def find_recipient_socket(recipient_name=None, recipient_address=None):
+    if recipient_address:
+        return clients[recipient_address]
+    if recipient_name:
+        recipient_address = find_recipient_address(recipient_name)
+        return clients[recipient_address]
+
+
+#---- P2P Functions ----#
+def create_P2P_request(client_socket, recipient_name):
+
+    recipient_address = find_recipient_address(recipient_name=recipient_name) 
+    pending_p2p_requests[client_socket.getpeername()] = recipient_address
+    consent_request_p2p_connection(client_socket, recipient_name)
+    message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, recipient_address)
+    client_socket.sendall(message)
+
+
+def consent_request_p2p_connection(client_socket, target):
+    target_address = find_recipient_address(target)
+    message = EventBus.message_builder(codes.CONSENT_REQUEST_P2P_OPCODE, find_recipient_name(client_socket.getpeername()))
+    clients[target_address].sendall(message)
+    print(f"Sent consent request to {target} at {target_address}.")
+
+
+def consent_recieved_p2p_connection(client_socket, target_name, response):
+    response = response.decode('utf-8')
+    match response.lower():
+        case "y":
+            target_socket = find_recipient_socket(recipient_name=target_name)
+            client_a_message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, client_socket.getpeername())
+            client_b_message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, find_recipient_address(target_name))
+            client_socket.sendall(client_b_message)
+            target_socket.sendall(client_a_message)
+        case "n":
+            print("P2P request rejected")
+        case _:
+            print("Invalid response recieved")
 
 
 def prompt_encryption_selection(client_socket, opcode, target):
-    client_socket.sendall(codes.RESPONSE_ENCRYPTION_METHODS_OPCODE.encode('utf-8')+pickle.dumps(ENCRYPTION_METHODS))
+
+    message = EventBus.message_builder(codes.RESPONSE_ENCRYPTION_METHODS_OPCODE, pickle.dumps(ENCRYPTION_METHODS))
+    client_socket.sendall(message)
     data = client_socket.recv(1024)
     try:
         enc_method = ENCRYPTION_METHODS[data]
         while True:
             middle_man_messages(client_socket, target, enc_method)
     except:
-        client_socket.sendall(("No such method try again").encode('utf-8'))
+        EventBus.message_builder(codes.FILLER_OPCODE,"No such method try again")
     def middle_man_messages(client_socket, target, enc_method):
         message = client_socket.recv(1024)
-        target_address = find_recipient(client_socket, target)
+        target_address = find_recipient_address(target)
         pass  # Placeholder for message handling logic
 
 
 #---- OPCODE HANDLERS -----#
 def handle_requests(client_socket, client_address, data):
-
-    request = data.decode("utf-8")
-
-    if len(request) < codes.opcode_length:
-        print("Invalid request: missing opcode")
-        return
-
-    opcode = request[:codes.opcode_length]
-    request_content = request[codes.opcode_length:]
-
+    opcode,request_content = EventBus.parse_event(data, return_opcode=True)
 
     handler = OPCODE_HANDLERS.get(opcode)
 
@@ -139,56 +160,55 @@ def handle_requests(client_socket, client_address, data):
 def handle_name(client_socket, client_address, content):
     print(f"Received name: {content}")
     user_list[client_address] = content
-    response = f"Server received your name: {content}"
-    client_socket.sendall(response.encode("utf-8"))
+    response = EventBus.message_builder(codes.RESPONSE_NAME_OPCODE,f"Server received your name: {content}")
+    client_socket.sendall(response)
 
 
 def handle_user_list_request(client_socket, client_address, _):
+
     username = user_list.get(client_address, "UNKNOWN")
     print(f"Server received request from: {username}. Sending list...")
-    payload = (
-        codes.RESPONSE_USER_LIST_OPCODE.encode("utf-8") +
-        pickle.dumps(user_list)
-    )
+
+    payload = EventBus.message_builder(codes.RESPONSE_USER_LIST_OPCODE, user_list)
     client_socket.sendall(payload)
 
 
 def handle_mediated_connection(client_socket, client_address, content):
-    print(
-        f"Server received connection request from: "
-        f"{user_list.get(client_address, 'UNKNOWN')}. "
-        "Prompting for encryption method..."
-    )
+
     prompt_encryption_selection(client_socket, codes.CONNECT_TO_SERVER_MEDIATED_OPCODE, content)
 
 
 def handle_p2p_connection(client_socket, client_address, content):
+
     print(
         f"Server received p2p connection request from: "
         f"{user_list.get(client_address, 'UNKNOWN')}. Initiating handoff..."
     )
-    handOff_connection(client_socket, client_address, content)
+    create_P2P_request(client_socket, content)
 
 
 OPCODE_HANDLERS = {
+    #All opcodes' first digit should be 0 as this reflects the client -> server data flow
     codes.NAME_OPCODE: handle_name,
     codes.REQUEST_USER_LIST_OPCODE: handle_user_list_request,
     codes.CONNECT_TO_SERVER_MEDIATED_OPCODE: handle_mediated_connection,
-    codes.CONNECT_TO_P2P_OPCODE: handle_p2p_connection,
+    codes.CLIENT_REQUEST_P2P_OPCODE: handle_p2p_connection,
+    codes.CONSENT_REQUEST_P2P_OPCODE: consent_recieved_p2p_connection,
 }
 
 
 #---- SERVER MAIN LOOP -----#
 def main():
+    
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     host = '127.0.0.1'
     port = 12345
     server_socket.bind((host, port))
     server_socket.listen(5)
     print(f"Server listening on {host}:{port}")
-
     while True:
         client_socket, client_address = server_socket.accept()
+        clients[client_address] = client_socket
         print(f"Accepted connection from {client_address}")
         client_handler = threading.Thread(target=handle_client, args=(client_socket, client_address,))
         client_handler.start()

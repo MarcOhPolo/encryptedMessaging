@@ -1,9 +1,7 @@
 import socket
 import threading
 from EventBus import EventBus
-from server import codes
-import sys
-import time
+from EventBus import codes
 
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
@@ -16,21 +14,21 @@ def main():
 
     client_socket.connect((host, port))
 
-    
-    print(greeting_msg)
-    name_registration(client_socket)
-
-    client_interface_thread = threading.Thread(target=cmd, args=(client_socket,),daemon=True)
-    client_interface_thread.start()
     listen_thread = threading.Thread(target=listening_thread, args=(client_socket,),daemon=True)
     listen_thread.start()
 
+    print(greeting_msg)
+    name_registration(client_socket)
+
+    client_interface_thread = threading.Thread(target=cmd, args=(client_socket,))
+    client_interface_thread.start()
 
 
 def name_registration(client_socket):
-    name = codes.NAME_OPCODE + input("Enter your name: ")
-    client_socket.sendall(name.encode('utf-8'))
-    data = client_socket.recv(1024).decode('utf-8')
+    name = input("Enter your name: ")
+    name_submission = EventBus.message_builder(codes.NAME_OPCODE,name)
+    client_socket.sendall(name_submission)
+    data = EventBus.get_from_queue(codes.RESPONSE_NAME_OPCODE)
     print(f"{data}")
 
 
@@ -38,8 +36,7 @@ def request_userlist(client_socket, args=None):
     # Request user list from server
     # Now uses the EventBus to get the response from the listening thread instead of blocking recv
     client_socket.sendall(codes.REQUEST_USER_LIST_OPCODE.encode('utf-8'))
-    data = EventBus.get_from_queue(codes.RESPONSE_USER_LIST_OPCODE)
-    return data
+    return EventBus.get_from_queue(codes.RESPONSE_USER_LIST_OPCODE)
 
 
 def request_connection(client_socket,args=None):
@@ -51,26 +48,26 @@ def request_connection(client_socket,args=None):
 
 def choose_connection(client_socket, args=None):
     target = select_target_user(client_socket)
-    client_socket.sendall(codes.CONNECT_TO_P2P_OPCODE.encode('utf-8')+target.encode('utf-8'))
-    #WHEN THE SERVER RESPONDS WITH THE ADDRESS OF THE OTHER CLIENT
-    #LAUNCH P2P CONNECTION HERE ON A NEW THREAD
-    print(EventBus.get_from_queue(codes.RESPONSE_CLIENT_ADDRESS_OPCODE))
+    return target
 
 
 def select_target_user(client_socket):
-    userlist = display_userlist(client_socket)
+    display_userlist(client_socket)
     while True:
-        target = input("Select a user to connect to directly (enter name): ")
-        if target in userlist["values"].values():
+        target = input("Select a user to connect to (enter name): ")
+        if search_userlist(client_socket, target):
             print(f"Selected user: {target}")
             break
     return target
 
+def search_userlist(client_socket, target):
+    userlist = request_userlist(client_socket)
+    return target in userlist["values"].values()
 
 def display_userlist(client_socket, args=None):
     event_payload = request_userlist(client_socket)
     print(f"""User List:\n
-    {event_payload["formatted"]}
+{event_payload["formatted"]}
     """)
     return event_payload
 
@@ -82,13 +79,47 @@ def listening_thread(client_socket):
             EventBus.publish(data)
 
 
-def request_counter(connection_requests=[]):
-    print(f"Connection requests: {len(connection_requests)}")
+def request_counter(client_socket, args=None):
+    request_count = EventBus._queues[codes.CONSENT_REQUEST_P2P_OPCODE].qsize()
+    print(f"Connection requests: {request_count}")
+    if request_count > 0:
+        for _ in range(request_count):
+            name = EventBus.get_from_queue(codes.CONSENT_REQUEST_P2P_OPCODE)
+            print(f"Connection request from: {name}")
+        print(f"To respond, use the 'p2p' command with the name, then accept or deny.")
 
+
+def p2p_connection_handler(client_socket, args=None):
+    if (len(args)==0):
+        target = choose_connection(client_socket)
+        request = EventBus.message_builder(codes.CLIENT_REQUEST_P2P_OPCODE, target)
+        client_socket.sendall(request)
+    elif (len(args)==2):
+        p2p_consent(client_socket,args)
+    elif (len(args)==1) and (search_userlist(client_socket, args[0])):
+        request = EventBus.message_builder(codes.CLIENT_REQUEST_P2P_OPCODE, args[0])
+        client_socket.sendall(request)
+    else:
+        print("Check P2P arguements, try again")
+
+def p2p_connection_establish(address):
+    p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    p2p_socket.connect(address)
+    print("P2P connection established.")
+
+def p2p_consent(client_socket, args=None):
+    
+    if search_userlist(client_socket, args[0]):
+        message = EventBus.message_builder(codes.CONSENT_TO_P2P,args)
+        client_socket.sendall(message)
+    else:
+        print(f"{args[0]} is not a valid user, please input a connected user (see userlist)")
+
+    # TODO: Consent will have to be sent as a JSON object, include a target, and a name
 
 COMMANDS = {
     "userlist": display_userlist,
-    "p2p": choose_connection,
+    "p2p": p2p_connection_handler,
     "server-mediated": request_connection,
     "requests": request_counter,
 }
@@ -113,6 +144,7 @@ def cmd(client_socket):
             COMMANDS[name](client_socket, args)
         else:
             print(f"Unknown command: {name}")
+
 
 if __name__ == "__main__":
     main()
