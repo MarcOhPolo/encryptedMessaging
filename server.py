@@ -101,8 +101,6 @@ def create_P2P_request(client_socket, recipient_name):
     recipient_address = find_recipient_address(recipient_name=recipient_name) 
     pending_p2p_requests[client_socket.getpeername()] = recipient_address
     consent_request_p2p_connection(client_socket, recipient_name)
-    message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, recipient_address)
-    client_socket.sendall(message)
 
 
 def consent_request_p2p_connection(client_socket, target):
