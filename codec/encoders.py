@@ -19,7 +19,7 @@ def encode_format_json_ipv4_address(payload):
 
 def encode_format_json_p2p_request(payload):
     packet = json.dumps({
-                "consent_form": {
+                "request_form": {
                     "target_name": payload[0],
                     "response": payload[1]
                 }

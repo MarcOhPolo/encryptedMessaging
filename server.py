@@ -112,19 +112,21 @@ def consent_request_p2p_connection(client_socket, target):
     print(f"Sent consent request to {target} at {target_address}.")
 
 
-def consent_recieved_p2p_connection(client_socket, target_name, response):
-    response = response.decode('utf-8')
+def consent_recieved_p2p_connection(client_socket, client_address, packet):
+    target_name = packet['target_name']
+    response = packet['response']
     match response.lower():
-        case "y":
+        case "accept":
             target_socket = find_recipient_socket(recipient_name=target_name)
-            client_a_message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, client_socket.getpeername())
+            client_a_message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, client_address)
             client_b_message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, find_recipient_address(target_name))
             client_socket.sendall(client_b_message)
             target_socket.sendall(client_a_message)
-        case "n":
+            print("P2P Information distributed, severing connection to hosts...")
+        case "deny":
             print("P2P request rejected")
         case _:
-            print("Invalid response recieved")
+            print(f"Invalid response recieved {response}")
 
 
 def prompt_encryption_selection(client_socket, opcode, target):
@@ -193,7 +195,7 @@ OPCODE_HANDLERS = {
     REQUEST_USER_LIST_OPCODE: handle_user_list_request,
     CONNECT_TO_SERVER_MEDIATED_OPCODE: handle_mediated_connection,
     CLIENT_REQUEST_P2P_OPCODE: handle_p2p_connection,
-    CONSENT_REQUEST_P2P_OPCODE: consent_recieved_p2p_connection,
+    CONSENT_TO_P2P: consent_recieved_p2p_connection,
 }
 
 

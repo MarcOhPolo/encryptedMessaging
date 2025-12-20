@@ -24,6 +24,7 @@ RESPONSE_NAME_OPCODE = OPCODE_PREFIX+"101"
 RESPONSE_CLIENT_ADDRESS_OPCODE = OPCODE_PREFIX+"124"
 CONSENT_REQUEST_P2P_OPCODE = OPCODE_PREFIX+"107"
 
+
 opcode_length = len(FILLER_OPCODE)
 
 #Temporary, will make better way than manual filling of this group
