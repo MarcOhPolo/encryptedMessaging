@@ -5,7 +5,7 @@ import registry
 
 class EventBus:
 
-    # Initialize queues for each opcode that requires event handling for the client
+    # Initialize queues for each opcode that requires event handling from the client
     _queues = {opcode: Queue() for opcode in server_to_client_group}
 
     # Custom event bus to handle events between threads, can add locks, or other features as needed

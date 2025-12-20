@@ -42,11 +42,11 @@ def request_userlist(client_socket, args=None):
 def request_connection(client_socket,args=None):
     target = select_target_user(client_socket)
     client_socket.sendall(CONNECT_TO_SERVER_MEDIATED_OPCODE.encode('utf-8')+target.encode('utf-8'))
-    data = EventBus.get_from_queue(RESPONSE_CLIENT_ADDRESS_OPCODE)
+    data = EventBus.get_from_queue(CONSENT_REQUEST_P2P_OPCODE)
     print(data)
 
 
-def choose_connection(client_socket, args=None):
+def choose_target(client_socket, args=None):
     target = select_target_user(client_socket)
     return target
 
@@ -86,21 +86,24 @@ def request_counter(client_socket, args=None):
         for _ in range(request_count):
             name = EventBus.get_from_queue(CONSENT_REQUEST_P2P_OPCODE)
             print(f"Connection request from: {name}")
-        print(f"To respond, use the 'p2p' command with the name, then accept or deny.")
+        print(f"To respond, use the 'p2p' command with the name, then accept, ignore to deny")
 
 
 def p2p_connection_handler(client_socket, args=None):
     if (len(args)==0):
-        target = choose_connection(client_socket)
+        target = choose_target(client_socket)
         request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, target)
         client_socket.sendall(request)
-    elif (len(args)==2):
-        p2p_consent(client_socket,args)
     elif (len(args)==1) and (search_userlist(client_socket, args[0])):
         request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, args[0])
         client_socket.sendall(request)
+    elif (len(args)==2):
+        p2p_consent(client_socket,args)
+        target_address = EventBus.get_from_queue(RESPONSE_CLIENT_ADDRESS_OPCODE)
+        conclude_handshake(client_socket, target_address)
     else:
-        print("Check P2P arguements, try again")
+        print("Check P2P arguements and try again")
+
 
 def p2p_connection_establish(address):
     p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -115,7 +118,17 @@ def p2p_consent(client_socket, args=None):
     else:
         print(f"{args[0]} is not a valid user, please input a connected user (see userlist)")
 
-    # TODO: Consent will have to be sent as a JSON object, include a target, and a name
+
+def conclude_handshake(client_socket, new_target_address):
+    # Open new terminal - message terminal with the selected user
+    # 1. Stop connection to the server so port opens up
+    # 2. Connect to the new target address
+    # 3. Implement message opcode
+    print(new_target_address)
+    client_socket.close()
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect(new_target_address)
+
 
 COMMANDS = {
     "userlist": display_userlist,
