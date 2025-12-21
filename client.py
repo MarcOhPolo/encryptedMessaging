@@ -67,16 +67,17 @@ def search_userlist(client_socket, target):
 def display_userlist(client_socket, args=None):
     event_payload = request_userlist(client_socket)
     print(f"""User List:\n
-{event_payload["formatted"]}
-    """)
+{event_payload["formatted"]}""")
     return event_payload
 
 
 def listening_thread(client_socket):
-    while True:
-        data = client_socket.recv(1024)
-        if data:
-            EventBus.publish(data)
+    with client_socket:
+        print("Still running")
+        while True:
+            data = client_socket.recv(1024)
+            if data:
+                EventBus.publish(data)
 
 
 def request_counter(client_socket, args=None):
@@ -100,7 +101,6 @@ def p2p_connection_handler(client_socket, args=None):
     elif (len(args)==2):
         p2p_consent(client_socket,args)
         target_address = EventBus.get_from_queue(RESPONSE_CLIENT_ADDRESS_OPCODE)
-        conclude_handshake(client_socket, target_address)
     else:
         print("Check P2P arguements and try again")
 
@@ -117,17 +117,6 @@ def p2p_consent(client_socket, args=None):
         client_socket.sendall(message)
     else:
         print(f"{args[0]} is not a valid user, please input a connected user (see userlist)")
-
-
-def conclude_handshake(client_socket, new_target_address):
-    # Open new terminal - message terminal with the selected user
-    # 1. Stop connection to the server so port opens up
-    # 2. Connect to the new target address
-    # 3. Implement message opcode
-    print(new_target_address)
-    client_socket.close()
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(new_target_address)
 
 
 COMMANDS = {

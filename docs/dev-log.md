@@ -84,8 +84,11 @@ Another architerctural note that I realised is that the server is handling messa
 This project has repeatedly shown me that early design decisions often don’t anticipate future needs. Each time I implement a new feature, I uncover architectural gaps. I’m refactoring the system into a cleaner layered model: Server handles transport only, the EventBus handles encoding/decoding and event multiplexing, and the terminal handles presentation. This separation of concerns should make future features — like P2P connections or additional message types — much easier to implement and test.
 
 The new architecture I am going for:
-Server -> EventBus Message Builder -> |Data in Transit| -> EventBus Decoder -> EventBus Multiplex Event Queue -> Terminal
+Server -> EventBus Message Builder -> |Data in Transit| ->  EventBus Multiplex Event Queue -> EventBus Decoder -> Terminal
 
+### 2025-12-21
+
+The new codec registry system works well and the Eventbus is looking much cleaner. Now that that's out of the way I can focus on how I want to actually create the p2p sockets, I need to organise it in such a way the the person who sent the request is notified of the fact consent was recieved and ask them if they want to connect. Problem is that means I need to push into the UI somehow and alert the user, but that will need some system from the UI to signify if it's ready to recieve and alert.
 
 ## Architecture or Concept Notes (Optional)
 Use this section to jot down any important design thoughts that don’t fit neatly into a daily entry:
