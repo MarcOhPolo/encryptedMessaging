@@ -2,7 +2,7 @@ import socket
 import pickle
 import threading
 from EventBus import EventBus
-from EventBus import codes
+from codes import *
 
 ENCRYPTION_METHODS = {1:"DIFFIE HELLMAN"}
 #ENCRYPTION_METHODS = {
@@ -101,35 +101,35 @@ def create_P2P_request(client_socket, recipient_name):
     recipient_address = find_recipient_address(recipient_name=recipient_name) 
     pending_p2p_requests[client_socket.getpeername()] = recipient_address
     consent_request_p2p_connection(client_socket, recipient_name)
-    message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, recipient_address)
-    client_socket.sendall(message)
 
 
 def consent_request_p2p_connection(client_socket, target):
     target_address = find_recipient_address(target)
-    message = EventBus.message_builder(codes.CONSENT_REQUEST_P2P_OPCODE, find_recipient_name(client_socket.getpeername()))
+    message = EventBus.message_builder(CONSENT_REQUEST_P2P_OPCODE, find_recipient_name(client_socket.getpeername()))
     clients[target_address].sendall(message)
     print(f"Sent consent request to {target} at {target_address}.")
 
 
-def consent_recieved_p2p_connection(client_socket, target_name, response):
-    response = response.decode('utf-8')
+def consent_recieved_p2p_connection(client_socket, client_address, packet):
+    target_name = packet['target_name']
+    response = packet['response']
     match response.lower():
-        case "y":
+        case "accept":
             target_socket = find_recipient_socket(recipient_name=target_name)
-            client_a_message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, client_socket.getpeername())
-            client_b_message = EventBus.message_builder(codes.RESPONSE_CLIENT_ADDRESS_OPCODE, find_recipient_address(target_name))
+            client_a_message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, client_address)
+            client_b_message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, find_recipient_address(target_name))
             client_socket.sendall(client_b_message)
             target_socket.sendall(client_a_message)
-        case "n":
+            print("P2P Information distributed, severing connection to hosts...")
+        case "deny":
             print("P2P request rejected")
         case _:
-            print("Invalid response recieved")
+            print(f"Invalid response recieved {response}")
 
 
 def prompt_encryption_selection(client_socket, opcode, target):
 
-    message = EventBus.message_builder(codes.RESPONSE_ENCRYPTION_METHODS_OPCODE, pickle.dumps(ENCRYPTION_METHODS))
+    message = EventBus.message_builder(RESPONSE_ENCRYPTION_METHODS_OPCODE, pickle.dumps(ENCRYPTION_METHODS))
     client_socket.sendall(message)
     data = client_socket.recv(1024)
     try:
@@ -137,7 +137,7 @@ def prompt_encryption_selection(client_socket, opcode, target):
         while True:
             middle_man_messages(client_socket, target, enc_method)
     except:
-        EventBus.message_builder(codes.FILLER_OPCODE,"No such method try again")
+        EventBus.message_builder(FILLER_OPCODE,"No such method try again")
     def middle_man_messages(client_socket, target, enc_method):
         message = client_socket.recv(1024)
         target_address = find_recipient_address(target)
@@ -160,7 +160,7 @@ def handle_requests(client_socket, client_address, data):
 def handle_name(client_socket, client_address, content):
     print(f"Received name: {content}")
     user_list[client_address] = content
-    response = EventBus.message_builder(codes.RESPONSE_NAME_OPCODE,f"Server received your name: {content}")
+    response = EventBus.message_builder(RESPONSE_NAME_OPCODE,f"Server received your name: {content}")
     client_socket.sendall(response)
 
 
@@ -169,13 +169,13 @@ def handle_user_list_request(client_socket, client_address, _):
     username = user_list.get(client_address, "UNKNOWN")
     print(f"Server received request from: {username}. Sending list...")
 
-    payload = EventBus.message_builder(codes.RESPONSE_USER_LIST_OPCODE, user_list)
+    payload = EventBus.message_builder(RESPONSE_USER_LIST_OPCODE, user_list)
     client_socket.sendall(payload)
 
 
 def handle_mediated_connection(client_socket, client_address, content):
 
-    prompt_encryption_selection(client_socket, codes.CONNECT_TO_SERVER_MEDIATED_OPCODE, content)
+    prompt_encryption_selection(client_socket, CONNECT_TO_SERVER_MEDIATED_OPCODE, content)
 
 
 def handle_p2p_connection(client_socket, client_address, content):
@@ -189,11 +189,11 @@ def handle_p2p_connection(client_socket, client_address, content):
 
 OPCODE_HANDLERS = {
     #All opcodes' first digit should be 0 as this reflects the client -> server data flow
-    codes.NAME_OPCODE: handle_name,
-    codes.REQUEST_USER_LIST_OPCODE: handle_user_list_request,
-    codes.CONNECT_TO_SERVER_MEDIATED_OPCODE: handle_mediated_connection,
-    codes.CLIENT_REQUEST_P2P_OPCODE: handle_p2p_connection,
-    codes.CONSENT_REQUEST_P2P_OPCODE: consent_recieved_p2p_connection,
+    NAME_OPCODE: handle_name,
+    REQUEST_USER_LIST_OPCODE: handle_user_list_request,
+    CONNECT_TO_SERVER_MEDIATED_OPCODE: handle_mediated_connection,
+    CLIENT_REQUEST_P2P_OPCODE: handle_p2p_connection,
+    CONSENT_TO_P2P: consent_recieved_p2p_connection,
 }
 
 
