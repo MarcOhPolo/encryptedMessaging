@@ -2,6 +2,7 @@ import socket
 import threading
 from EventBus import EventBus
 from codes import *
+from p2p_session import P2PSession
 
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
@@ -98,25 +99,26 @@ def p2p_connection_handler(client_socket, args=None):
     elif (len(args)==1) and (search_userlist(client_socket, args[0])):
         request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, args[0])
         client_socket.sendall(request)
+        p2p_session_open(args[0])
     elif (len(args)==2):
         p2p_consent(client_socket,args)
         target_address = EventBus.get_from_queue(RESPONSE_CLIENT_ADDRESS_OPCODE)
     else:
         print("Check P2P arguements and try again")
 
-
-def p2p_connection_establish(address):
-    p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    p2p_socket.connect(address)
-    print("P2P connection established.")
-
 def p2p_consent(client_socket, args=None):
     
     if search_userlist(client_socket, args[0]):
+        #Needs to change to send p2p session socket information
         message = EventBus.message_builder(CONSENT_TO_P2P,args)
         client_socket.sendall(message)
     else:
         print(f"{args[0]} is not a valid user, please input a connected user (see userlist)")
+
+
+def p2p_session_open(peer_name):
+    p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    return P2PSession(p2p_socket, peer_name)
 
 
 COMMANDS = {
