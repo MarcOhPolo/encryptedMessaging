@@ -74,7 +74,6 @@ def display_userlist(client_socket, args=None):
 
 def listening_thread(client_socket):
     with client_socket:
-        print("Still running")
         while True:
             data = client_socket.recv(1024)
             if data:
@@ -90,22 +89,6 @@ def request_counter(client_socket, args=None):
             print(f"Connection request from: {name}")
         print(f"To respond, use the 'p2p' command with the name, then accept, ignore to deny")
 
-
-# def p2p_connection_handler(client_socket, args=None):
-#     if (len(args)==0):
-#         target = choose_target(client_socket)
-#         request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, target)
-#         client_socket.sendall(request)
-#         p2p_session_open(target)
-#     elif (len(args)==1) and (search_userlist(client_socket, args[0])):
-#         request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, args[0])
-#         client_socket.sendall(request)
-#         p2p_session_open(args[0])
-#     elif (len(args)==2):
-#         p2p_consent(client_socket,args)
-#         target_address = EventBus.get_from_queue(RESPONSE_CLIENT_ADDRESS_OPCODE)
-#     else:
-#         print("Check P2P arguements and try again")
 
 def p2p_connection_handler(client_socket, args=None):
     try:
