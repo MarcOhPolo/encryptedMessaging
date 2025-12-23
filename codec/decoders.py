@@ -23,3 +23,9 @@ def decode_format_json_p2p(packet):
     payload = json.loads(packet)
     request_form = payload['request_form']
     return request_form
+
+def decode_p2p_request(packet):
+    payload = json.loads(packet)
+    recipient_name = payload["recipient_name"]
+    p2p_source = payload["from_address"]
+    return (recipient_name,p2p_source)

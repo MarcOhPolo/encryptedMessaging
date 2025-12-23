@@ -117,7 +117,10 @@ def p2p_connection_handler(client_socket, args=None):
             p2p_session_open(target_address)
             return
         # Only runs past this point if it's a request and not acceptance
-        request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, target)
+        p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        p2p_socket.bind(("0.0.0.0", 0))
+        request_payload = [target, client_socket.getsockname()[0], p2p_socket.getsockname()[1]]
+        request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, request_payload)
         client_socket.sendall(request)
 
     except (OSError, RuntimeError) as e:
@@ -135,9 +138,11 @@ def p2p_consent(client_socket, args=None):
         print(f"{args[0]} is not a valid user, please input a connected user (see userlist)")
 
 
-def p2p_session_open(peer_name):
-    p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def p2p_session_open(peer_name, p2p_socket=None):
+    if not p2p_socket:
+        p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     return P2PSession(p2p_socket, peer_name)
+
 
 
 COMMANDS = {

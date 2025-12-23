@@ -26,3 +26,15 @@ def encode_format_json_p2p_request(payload):
             }
         )
     return packet.encode('utf-8')
+
+# New method to send request to include the p2p session socket info
+def encode_p2p_request(payload):
+    packet = json.dumps({
+        "recipient_name": payload[0],
+        "from_address":
+        {
+            "ip": payload[1],
+            "port": payload[2]
+        }
+    })
+    return packet.encode('utf-8')

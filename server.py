@@ -37,7 +37,14 @@ clients = {}
 
 # request_id -> {from, to}
 # Tracks pending P2P connection requests; entries are resolved via incoming responses and removed.
-pending_p2p_requests = {}
+pending_p2p_requests = {
+    # "192.168.1.10:2382": alice
+}
+
+pending_requests_by_user = {
+    # "alice": {"192.168.1.10:2382", "192.168.1.12"}
+}
+
 
 
 #---- CLIENT HANDLERS -----#
@@ -69,7 +76,7 @@ def handle_client(client_socket, client_address):
         clients.pop(client_address, None)
 
 
-def find_recipient_address(recipient_name):
+def find_address(recipient_name):
 
     recipient_address = next(
     (addr for addr, name in user_list.items() if name == recipient_name),
@@ -79,45 +86,55 @@ def find_recipient_address(recipient_name):
         return recipient_address
     return None
 
-def find_recipient_name(recipient_address):
-
+def find_name(recipient_address):
     recipient_name = user_list.get(recipient_address, None)
 
     if recipient_name is not None:
         return recipient_name
     return None
 
-def find_recipient_socket(recipient_name=None, recipient_address=None):
+def find_socket(recipient_name=None, recipient_address=None):
     if recipient_address:
         return clients[recipient_address]
     if recipient_name:
-        recipient_address = find_recipient_address(recipient_name)
+        recipient_address = find_address(recipient_name)
         return clients[recipient_address]
 
 
 #---- P2P Functions ----#
-def create_P2P_request(client_socket, recipient_name):
-
-    recipient_address = find_recipient_address(recipient_name=recipient_name) 
-    pending_p2p_requests[client_socket.getpeername()] = recipient_address
+def create_P2P_request(client_socket, payload):
+    recipient_name = payload[0]
+    client_p2p_address = payload[1]
+    pending_p2p_requests[client_p2p_address] = recipient_name
+    pending_requests_by_user[recipient_name] = client_p2p_address
     consent_request_p2p_connection(client_socket, recipient_name)
 
 
 def consent_request_p2p_connection(client_socket, target):
-    target_address = find_recipient_address(target)
-    message = EventBus.message_builder(CONSENT_REQUEST_P2P_OPCODE, find_recipient_name(client_socket.getpeername()))
+    target_address = find_address(target)
+    message = EventBus.message_builder(CONSENT_REQUEST_P2P_OPCODE, find_name(client_socket.getpeername()))
     clients[target_address].sendall(message)
     print(f"Sent consent request to {target} at {target_address}.")
 
 
-def consent_recieved_p2p_connection(client_socket, client_address, packet):
+def consent_recieved_p2p_connection(client_socket, packet):
+    response = packet[0]
+    client_address = client_socket.getpeername()
+    client_name = find_name(client_address)
+    if response.lower() != "accept":
+        return
+    p2p_connector_name = packet[1]
+    new_p2p_address = packet[2]
+    if not (check_pending_requests(p2p_connector_name) == client_name):
+        return
     target_name = packet['target_name']
+    target_address = pending_requests_by_user[client_name]
     response = packet['response']
     match response.lower():
         case "accept":
-            target_socket = find_recipient_socket(recipient_name=target_name)
-            client_a_message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, client_address)
-            client_b_message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, find_recipient_address(target_name))
+            target_socket = find_socket(recipient_name=target_name)
+            client_a_message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, new_p2p_address)
+            client_b_message = EventBus.message_builder(RESPONSE_CLIENT_ADDRESS_OPCODE, target_address)
             client_socket.sendall(client_b_message)
             target_socket.sendall(client_a_message)
             print("P2P Information distributed, severing connection to hosts...")
@@ -125,6 +142,10 @@ def consent_recieved_p2p_connection(client_socket, client_address, packet):
             print("P2P request rejected")
         case _:
             print(f"Invalid response recieved {response}")
+
+
+def check_pending_requests(from_address, to_name):
+    return pending_p2p_requests.get(from_address) == to_name
 
 
 def prompt_encryption_selection(client_socket, opcode, target):
@@ -140,7 +161,7 @@ def prompt_encryption_selection(client_socket, opcode, target):
         EventBus.message_builder(FILLER_OPCODE,"No such method try again")
     def middle_man_messages(client_socket, target, enc_method):
         message = client_socket.recv(1024)
-        target_address = find_recipient_address(target)
+        target_address = find_address(target)
         pass  # Placeholder for message handling logic
 
 
