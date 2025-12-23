@@ -86,6 +86,7 @@ def find_address(recipient_name):
         return recipient_address
     return None
 
+# should make it possible to find from either the socket or address
 def find_name(recipient_address):
     recipient_name = user_list.get(recipient_address, None)
 
@@ -105,7 +106,7 @@ def find_socket(recipient_name=None, recipient_address=None):
 def create_P2P_request(client_socket, payload):
     recipient_name = payload[0]
     client_p2p_address = payload[1]
-    pending_p2p_requests[client_p2p_address] = recipient_name
+    pending_p2p_requests[find_name(client_socket.getpeername())] = recipient_name
     pending_requests_by_user[recipient_name] = client_p2p_address
     consent_request_p2p_connection(client_socket, recipient_name)
 
@@ -117,17 +118,15 @@ def consent_request_p2p_connection(client_socket, target):
     print(f"Sent consent request to {target} at {target_address}.")
 
 
-def consent_recieved_p2p_connection(client_socket, packet):
-    response = packet[0]
-    client_address = client_socket.getpeername()
+def consent_recieved_p2p_connection(client_socket, client_address, packet):
+    response = packet['response']
     client_name = find_name(client_address)
     if response.lower() != "accept":
         return
-    p2p_connector_name = packet[1]
-    new_p2p_address = packet[2]
-    if not (check_pending_requests(p2p_connector_name) == client_name):
-        return
     target_name = packet['target_name']
+    new_p2p_address = packet['from_address']
+    if not (check_pending_requests(target_name) == client_name):
+        return
     target_address = pending_requests_by_user[client_name]
     response = packet['response']
     match response.lower():
