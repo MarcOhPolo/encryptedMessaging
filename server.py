@@ -107,7 +107,7 @@ def create_P2P_request(client_socket, payload):
     recipient_name = payload[0]
     client_p2p_address = payload[1]
     pending_p2p_requests[find_name(client_socket.getpeername())] = recipient_name
-    pending_requests_by_user[recipient_name] = client_p2p_address
+    pending_requests_by_user[recipient_name] = [client_p2p_address['ip'], client_p2p_address['port']]
     consent_request_p2p_connection(client_socket, recipient_name)
 
 
@@ -119,16 +119,13 @@ def consent_request_p2p_connection(client_socket, target):
 
 
 def consent_recieved_p2p_connection(client_socket, client_address, packet):
-    response = packet['response']
+    response_header = packet[0]
     client_name = find_name(client_address)
-    if response.lower() != "accept":
-        return
-    target_name = packet['target_name']
-    new_p2p_address = packet['from_address']
-    if not (check_pending_requests(target_name) == client_name):
-        return
+    target_name = response_header['target_name']
+    new_p2p_address = (packet[1]['ip'], packet[1]['port'])
+    print(pending_requests_by_user)
     target_address = pending_requests_by_user[client_name]
-    response = packet['response']
+    response = response_header['response']
     match response.lower():
         case "accept":
             target_socket = find_socket(recipient_name=target_name)

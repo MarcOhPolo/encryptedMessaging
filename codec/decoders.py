@@ -22,7 +22,8 @@ def decode_format_json_ipv4_address(packet):
 def decode_format_json_p2p(packet):
     payload = json.loads(packet)
     request_form = payload['request_form']
-    return request_form
+    address = payload['from_address']
+    return (request_form,address)
 
 def decode_p2p_request(packet):
     payload = json.loads(packet)

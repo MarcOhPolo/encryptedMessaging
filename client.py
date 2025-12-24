@@ -104,9 +104,9 @@ def p2p_connection_handler(client_socket, args=None):
             if not search_userlist(client_socket, target):
                 print(f"User {target} not found")
                 return 
-        # Request has been accepted
+        # Request has been accepted/denied
         if argc == 2:
-            p2p_consent(client_socket, args)
+            p2p_socket = p2p_consent(client_socket, args)
             target_address = EventBus.get_from_queue(
                 RESPONSE_CLIENT_ADDRESS_OPCODE
             )
@@ -114,7 +114,7 @@ def p2p_connection_handler(client_socket, args=None):
                 print("Failed to retrieve target address.")
                 return
 
-            p2p_session_open(target_address)
+            P2PSession(socket=p2p_socket,peer_address=target_address,peer_name=args[0])
             return
         # Only runs past this point if it's a request and not acceptance
         p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -122,18 +122,25 @@ def p2p_connection_handler(client_socket, args=None):
         request_payload = [target, client_socket.getsockname()[0], p2p_socket.getsockname()[1]]
         request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, request_payload)
         client_socket.sendall(request)
+        target_address = EventBus.get_from_queue(RESPONSE_CLIENT_ADDRESS_OPCODE, timeout=100)
+        P2PSession(socket=p2p_socket,peer_address=target_address, peer_name=target)
+
 
     except (OSError, RuntimeError) as e:
         print(f"P2P error: {e}")
-
 
 
 def p2p_consent(client_socket, args=None):
     
     if search_userlist(client_socket, args[0]):
         #Needs to change to send p2p session socket information
+        p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        p2p_socket.bind(("0.0.0.0", 0))
+        args.append(client_socket.getsockname()[0])
+        args.append(p2p_socket.getsockname()[1])
         message = EventBus.message_builder(CONSENT_TO_P2P,args)
         client_socket.sendall(message)
+        return p2p_socket
     else:
         print(f"{args[0]} is not a valid user, please input a connected user (see userlist)")
 

@@ -39,11 +39,11 @@ ENCODER_GROUPS = {
 }
 
 DECODER_GROUPS = {
-        OPCODE_simple_utf: decode_simple_utf,
-        OPCODE_pickle: decode_pickle_numbered_list,
-        OPCODE_format_json_ipv4_address: decode_format_json_ipv4_address,
-        OPCODE_format_json_p2p_request: decode_format_json_p2p,
-        OPCODE_p2p_request: decode_p2p_request
+    OPCODE_simple_utf: decode_simple_utf,
+    OPCODE_pickle: decode_pickle_numbered_list,
+    OPCODE_format_json_ipv4_address: decode_format_json_ipv4_address,
+    OPCODE_format_json_p2p_request: decode_format_json_p2p,
+    OPCODE_p2p_request: decode_p2p_request
 }
 
 ENCODERS = {
