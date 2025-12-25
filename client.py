@@ -3,9 +3,15 @@ import threading
 from EventBus import EventBus
 from codes import *
 from p2p_session import P2PSession
-
+import subprocess
+import sys
 
 greeting_msg = ("Hi there, welcome to the MS encrypted messaging service! :D")
+help_msg = ("""Commands:
+            userlist                                    Shows all connected users
+            requests                                    Displays current requests
+            p2p <username> - optional <accept/deny>     Creates a p2p request, or accepts/denies a request
+            """)
 
 
 def main():
@@ -23,6 +29,8 @@ def main():
 
     client_interface_thread = threading.Thread(target=cmd, args=(client_socket,))
     client_interface_thread.start()
+
+
 
 
 def name_registration(client_socket):
@@ -90,50 +98,70 @@ def request_counter(client_socket, args=None):
         print(f"To respond, use the 'p2p' command with the name, then accept, ignore to deny")
 
 
-def p2p_connection_handler(client_socket, args=None):
-    try:
-        argc = len(args)
-        target = ""
-
-        # p2p command with no target specified, displays user list, then input target
-        if argc == 0:
-            target = choose_target(client_socket)
-        # p2p command with target specified
-        if argc == 1:
-            target = args[0]
-            if not search_userlist(client_socket, target):
-                print(f"User {target} not found")
-                return 
-        # Request has been accepted/denied
-        if argc == 2:
-            p2p_socket = p2p_consent(client_socket, args)
-            target_address = EventBus.get_from_queue(
-                RESPONSE_CLIENT_ADDRESS_OPCODE
-            )
-            if not target_address:
-                print("Failed to retrieve target address.")
-                return
-
-            P2PSession(socket=p2p_socket,peer_address=target_address,peer_name=args[0])
+def handle_outgoing_p2p_request(client_socket, args):
+    # Determine target
+    if len(args) == 0:
+        target = choose_target(client_socket)
+        if not target:
             return
-        # Only runs past this point if it's a request and not acceptance
-        p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        p2p_socket.bind(("0.0.0.0", 0))
-        request_payload = [target, client_socket.getsockname()[0], p2p_socket.getsockname()[1]]
-        request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE, request_payload)
-        client_socket.sendall(request)
-        target_address = EventBus.get_from_queue(RESPONSE_CLIENT_ADDRESS_OPCODE, timeout=100)
-        P2PSession(socket=p2p_socket,peer_address=target_address, peer_name=target)
+    else:
+        target = args[0]
+        if not search_userlist(client_socket, target):
+            print(f"User '{target}' not found.")
+            return
+
+    # Create listening socket for incoming peer connection
+    p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    p2p_socket.bind(("0.0.0.0", 0))
+
+    local_ip, local_port = client_socket.getsockname()[0],p2p_socket.getsockname()[1]
+
+    request_payload = [
+        target,
+        local_ip,
+        local_port]
+
+    request = EventBus.message_builder(CLIENT_REQUEST_P2P_OPCODE,request_payload)
+    client_socket.sendall(request)
+
+    target_address = EventBus.get_from_queue(RESPONSE_CLIENT_ADDRESS_OPCODE,timeout=100)
+
+    if not target_address:
+        print("P2P request timed out.")
+        p2p_socket.close()
+        return
+
+    p2p_session_open(
+        p2p_socket=p2p_socket,
+        peer_address=target_address,
+        peer_name=target
+    )
 
 
-    except (OSError, RuntimeError) as e:
-        print(f"P2P error: {e}")
+def send_p2p_consent(client_socket, args):
+    p2p_socket = p2p_consent(client_socket, args)
+
+    if not p2p_socket:
+        return
+
+    target_address = EventBus.get_from_queue(
+        RESPONSE_CLIENT_ADDRESS_OPCODE
+    )
+
+    if not target_address:
+        print("Failed to retrieve target address.")
+        return
+
+    p2p_session_open(
+        p2p_socket=p2p_socket,
+        peer_address=target_address,
+        peer_name=args[0]
+    )
 
 
 def p2p_consent(client_socket, args=None):
     
     if search_userlist(client_socket, args[0]):
-        #Needs to change to send p2p session socket information
         p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         p2p_socket.bind(("0.0.0.0", 0))
         args.append(client_socket.getsockname()[0])
@@ -145,11 +173,31 @@ def p2p_consent(client_socket, args=None):
         print(f"{args[0]} is not a valid user, please input a connected user (see userlist)")
 
 
-def p2p_session_open(peer_name, p2p_socket=None):
+def p2p_session_open(peer_name, peer_address, p2p_socket=None):
     if not p2p_socket:
         p2p_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    return P2PSession(p2p_socket, peer_name)
+    return P2PSession(p2p_socket, peer_name, peer_address)
 
+
+def p2p_connection_handler(client_socket, args=None):
+    if args is None:
+        args = []
+
+    argc = len(args)
+
+    try:
+        if argc == 2:
+            send_p2p_consent(client_socket, args)
+            return
+
+        if argc in (0, 1):
+            handle_outgoing_p2p_request(client_socket, args)
+            return
+
+        print("Invalid P2P arguments.")
+
+    except (OSError, RuntimeError) as e:
+        print(f"P2P error: {e}")
 
 
 COMMANDS = {

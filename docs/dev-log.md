@@ -95,6 +95,27 @@ It's nice since I can avoid the alert system I imagined, it's not great because 
 
 If I did use 1 port, I'd have to do port multiplexing which is incredibly complicated and takes a lot of work, and I am not sure if I am up for it yet, I might try to create a new port mechanism first, and then once that works go back and try to create a multiplexing system.
 
+### 2025-12-25
+
+I’ve completed the P2P functionality, which is a significant milestone and something I’m genuinely proud of. In hindsight, the final result doesn’t look especially large or complex, but getting here required a substantial amount of design work, iteration, and careful reasoning. The complexity was not in the volume of code, but in the number of edge cases, protocol states, and failure modes that had to be thought through.
+
+The system now supports peer-to-peer connections using a dedicated port per session. Each P2P instance operates independently, which gives a clean separation of concerns and simplifies session lifecycle management. While my longer-term goal is to open each P2P session in a separate terminal, the current implementation is sufficient and stable for now.
+
+I am somewhat cautious about deploying this on the public internet. Before expanding functionality or hardening the networking layer further, I want to pause feature development and focus on improving code quality. At this point, the codebase has matured to a level of complexity where it is no longer reasonable to rely purely on mental models.
+
+The next phase will focus on:
+
+Cleaning and refactoring existing code
+
+Improving error handling and failure recovery
+
+Adding clear documentation
+
+Designing and implementing unit tests to lock in behavior
+
+This feels like the right moment to consolidate what exists rather than pushing forward blindly. Overall, I’m very happy with how the P2P system turned out and satisfied with the architectural decisions made so far.
+
+
 ## Architecture or Concept Notes (Optional)
 Use this section to jot down any important design thoughts that don’t fit neatly into a daily entry:
 
